@@ -1,7 +1,7 @@
 import numpy as np
 
 class ANNScratch:
-    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01):
+    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None):
         self.neurons = neurons
         self.activations = activations
         self.epochs = epochs
@@ -14,6 +14,7 @@ class ANNScratch:
         self.reg_lambda = reg_lambda
         self.epsilon = epsilon
         self.alpha = alpha
+        self.rms_norm = rms_norm
         self.weights = []
         self.biases = []
         self.initialize_weights()
@@ -56,7 +57,8 @@ class ANNScratch:
             return 1 / (1 + np.exp(-x))
         elif func == "tanh":
             return np.tanh(x)
-        elif func == "softmax": # not yet
+        # TODO
+        elif func == "softmax": 
             exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
             return exp_x / np.sum(exp_x, axis=1, keepdims=True)
         elif func == "softplus":
@@ -77,6 +79,7 @@ class ANNScratch:
             return x * (1 - x)
         elif func == "tanh":
             return 1 - np.tanh(x) ** 2
+        # TODO
         elif func == "softmax": # not yet
             softmax = self.activation(x, "softmax")
             return softmax * (1 - softmax)
@@ -133,7 +136,10 @@ class ANNScratch:
         for i in range(len(self.weights)):
             self.layer_inputs.append(input_data)
             z = np.dot(input_data, self.weights[i]) + self.biases[i]
-            input_data = self.rms_norm(input_data)
+
+            if (self.rms_norm == "true"):
+                input_data = self.rms_norm(input_data)
+                
             input_data = self.activation(z, self.activations[i])
             self.layer_outputs.append(input_data)
         return input_data
@@ -192,19 +198,19 @@ class ANNScratch:
     def predict(self, X):
         return self.forward(X)
 
-X = np.random.randn(1000, 10)
-y = np.random.randn(1000, 1)
+# X = np.random.randn(1000, 10)
+# y = np.random.randn(1000, 1)
 
-model = ANNScratch(
-    neurons=[10, 50, 150, 50, 1],
-    activations=["relu", "tanh", "softplus", "sigmoid"],
-    epochs=1000,
-    loss="mse",
-    learning_rate=1e-4,
-    batch_size=32,
-    verbose=1,
-    # regularization="l2",
-    reg_lambda=0.01
-)
+# model = ANNScratch(
+#     neurons=[10, 50, 150, 50, 1],
+#     activations=["relu", "tanh", "softplus", "sigmoid"],
+#     epochs=1000,
+#     loss="mse",
+#     learning_rate=1e-4,
+#     batch_size=32,
+#     verbose=1,
+#     # regularization="l2",
+#     reg_lambda=0.01
+# )
 
-model.fit(X, y)
+# model.fit(X, y)
