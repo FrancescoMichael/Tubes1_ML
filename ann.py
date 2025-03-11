@@ -1,0 +1,210 @@
+import numpy as np
+
+class ANNScratch:
+    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01):
+        self.neurons = neurons
+        self.activations = activations
+        self.epochs = epochs
+        self.loss = loss
+        self.learning_rate = learning_rate
+        self.initialization = initialization
+        self.batch_size = batch_size
+        self.verbose = verbose
+        self.regularization = regularization
+        self.reg_lambda = reg_lambda
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.weights = []
+        self.biases = []
+        self.initialize_weights()
+    
+    def initialize_weights(self):
+        weight = []
+        bias = []
+        for i in range(len(self.neurons) - 1):
+            input_dim = self.neurons[i]
+            output_dim = self.neurons[i+1]
+            if self.initialization == "zero":
+                weight = np.zeros((input_dim, output_dim))
+                bias = np.zeros((1, output_dim))
+            elif self.initialization == "uniform":
+                weight = np.random.uniform(-1, 1, (input_dim, output_dim))
+                bias = np.random.uniform(-1, 1, (1, output_dim))
+            elif self.initialization == "normal":
+                weight = np.random.randn(input_dim, output_dim) * 0.1
+                bias = np.random.randn(1, output_dim) * 0.1
+            elif self.initialization == "xavier":
+                scale = np.sqrt(2.0 / (input_dim + output_dim))
+                weight = np.random.randn(input_dim, output_dim) * scale
+                bias = np.random.randn(1, output_dim) * scale
+            elif self.initialization == "he":
+                scale = np.sqrt(2.0 / input_dim)
+                weight = np.random.randn(input_dim, output_dim) * scale
+                bias = np.random.randn(1, output_dim) * scale
+            else:
+                raise ValueError(f"Unsupported initialization method: {self.initialization}")
+        
+            self.weights.append(weight)
+            self.biases.append(bias)
+
+    def activation(self, x, func):
+        if func == "linear":
+            return x
+        elif func == "relu":
+            return np.maximum(0, x)
+        elif func == "sigmoid":
+            return 1 / (1 + np.exp(-x))
+        elif func == "tanh":
+            return np.tanh(x)
+        elif func == "softmax": # not yet
+            exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+            return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+        elif func == "softplus":
+            return np.log(1 + np.exp(x))
+        elif func == "leaky_relu":
+            return np.where(x > 0, x, self.alpha * x)
+        elif func == "mish":
+            return x * np.tanh(np.log(1 + np.exp(x)))
+        else:
+            raise ValueError(f"Unsupported activation function: {func}")
+    
+    def activation_derivative(self, x, func):
+        if func == "linear":
+            return np.ones_like(x)
+        elif func == "relu":
+            return np.where(x > 0, 1, 0)
+        elif func == "sigmoid":
+            return x * (1 - x)
+        elif func == "tanh":
+            return 1 - np.tanh(x) ** 2
+        elif func == "softmax": # not yet
+            softmax = self.activation(x, "softmax")
+            return softmax * (1 - softmax)
+        elif func == "softplus":
+            return 1 / (1 + np.exp(-x))
+        elif func == "leaky_relu":
+            return np.where(x > 0, 1, self.alpha)
+        elif func == "mish":
+            return np.tanh(np.log(1 + np.exp(x))) + x * (1 - np.tanh(np.log(1 + np.exp(x))) ** 2)
+        else:
+            raise ValueError(f"Unsupported activation function: {func}")
+    
+    def loss_function(self, y_actual, y_predicted):
+        if self.loss == "mse":
+            return np.mean((y_actual - y_predicted) ** 2)
+        elif self.loss == "binary_cross_entropy":
+            return -np.mean(y_actual * np.log(y_predicted + self.epsilon) + (1 - y_actual) * np.log(1 - y_predicted + self.epsilon))
+        elif self.loss == "categorical_cross_entropy":
+            return -np.mean(np.sum(y_actual * np.log(y_predicted + self.epsilon)))
+        else:
+            raise ValueError(f"Unsupported loss function: {self.loss}")
+
+    def loss_gradient(self, y_actual, y_predicted):
+        if self.loss == "mse":
+            return -2 * (y_actual - y_predicted) / y_actual.shape[0]
+        elif self.loss == "binary_cross_entropy":
+            return (y_predicted - y_actual) / (y_predicted * (1 - y_predicted) + self.epsilon)
+        elif self.loss == "categorical_cross_entropy":
+            return y_predicted - y_actual
+        else:
+            raise ValueError(f"Unsupported loss function: {self.loss}")
+
+    def regularization_loss(self):
+        if self.regularization == "l1":
+            return self.reg_lambda * sum(np.sum(np.abs(w)) for w in self.weights)
+        elif self.regularization == "l2":
+            return self.reg_lambda * sum(np.sum(w**2) for w in self.weights)
+        else:
+            raise ValueError(f"Unsupported regularization method: {self.regularization}")
+        
+    def compute_loss(self, X, y):
+        y_pred = self.forward(X)
+        return self.loss(y, y_pred) + self.regularization_loss()
+    
+    def rms_norm(self, X):
+        rms = np.sqrt(np.mean(X ** 2, axis = 1, keepdims = True) + self.epsilon)
+        return X / rms
+
+    def forward(self, X):
+        # TODO
+        self.layer_outputs = []
+        self.layer_inputs = []
+        input_data = X
+        for i in range(len(self.weights)):
+            self.layer_inputs.append(input_data)
+            z = np.dot(input_data, self.weights[i]) + self.biases[i]
+            input_data = self.rms_norm(input_data)
+            input_data = self.activation(z, self.activations[i])
+            self.layer_outputs.append(input_data)
+        return input_data
+
+    def backward(self, X, y):
+        # TODO
+        gradients_w = [np.zeros_like(w) for w in self.weights]
+        gradients_b = [np.zeros_like(b) for b in self.biases]
+        y_predicted = self.forward(X)
+        delta = self.loss_gradient(y, y_predicted)
+
+        for i in reversed(range(len(self.weights))):
+            output = self.layer_outputs[i]
+            input_data = self.layer_inputs[i]
+            activation_derivative = self.activation_derivative(output, self.activations[i])
+            delta = delta * activation_derivative
+            gradients_w[i] = np.dot(input_data.T, delta)
+            gradients_b[i] = np.sum(delta, axis=0, keepdims=True)
+            if i > 0:
+                delta = np.dot(delta, self.weights[i].T)
+
+        if self.regularization == "l1":
+            for i in range(len(self.weights)):
+                gradients_w[i] += self.reg_lambda * np.sign(self.weights[i])
+        elif self.regularization == "l2":
+            for i in range(len(self.weights)):
+                gradients_w[i] += self.reg_lambda * 2 * self.weights[i]
+
+        return gradients_w, gradients_b
+        
+    def update_weights(self, gradients_w, gradients_b):
+        # TODO
+        for i in range(len(self.weights)):
+            # print(f" Layer {i}, Gradients W: {np.mean(np.abs(gradients_w[i]))}, Gradients B: {np.mean(np.abs(gradients_b[i]))}")
+            self.weights[i] -= self.learning_rate * gradients_w[i]
+            self.biases[i] -= self.learning_rate * gradients_b[i]
+
+    def fit(self, X, y):
+        # TODO
+        n_samples = X.shape[0]
+        for epoch in range(self.epochs):
+            for batch_start in range(0, n_samples, self.batch_size):
+                batch_end = batch_start + self.batch_size
+                X_batch = X[batch_start:batch_end]
+                y_batch = y[batch_start:batch_end]
+
+                gradients_w, gradients_b = self.backward(X_batch, y_batch)
+                self.update_weights(gradients_w, gradients_b)
+            
+
+            if epoch % 100 == 0 and self.verbose:
+                y_predicted = self.predict(X)
+                loss = self.loss_function(y, y_predicted)
+                print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
+
+    def predict(self, X):
+        return self.forward(X)
+
+X = np.random.randn(1000, 10)
+y = np.random.randn(1000, 1)
+
+model = ANNScratch(
+    neurons=[10, 50, 150, 50, 1],
+    activations=["relu", "tanh", "softplus", "sigmoid"],
+    epochs=1000,
+    loss="mse",
+    learning_rate=1e-4,
+    batch_size=32,
+    verbose=1,
+    # regularization="l2",
+    reg_lambda=0.01
+)
+
+model.fit(X, y)
