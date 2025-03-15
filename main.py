@@ -1,133 +1,101 @@
-from ann import *
+from sklearn.datasets import fetch_openml
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
+from ann import ANNScratch
+import pandas as pd
 
-if __name__ == "__main__":
+def load_data():
+    data = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
+    X, y = data
+    X = X / 255.0
+
+    df = pd.DataFrame(X)
+    df.insert(0, "label", y)  # Menambahkan label sebagai kolom pertama
+    
+    df.to_csv("mnist.csv", index=False)
+    print("Dataset telah disimpan sebagai 'mnist.csv'.")
+    return X, y
+
+def load_mnist_from_csv():
+    df = pd.read_csv("mnist.csv")
+    y = df["label"].values
+    X = df.drop(columns=["label"]).values
+    return X, y
+
+def preprocess_data(X, y, test_size=0.3, random_state=42):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    return X_train, X_test, y_train, y_test
+
+def train_sklearn_mlp(X_train, X_test, y_train, y_test):
+    mlp = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=3, alpha=1e-4,
+                        solver='sgd', verbose=10, random_state=42, learning_rate_init=0.1)
+    mlp.fit(X_train, y_train)
+    y_pred = mlp.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f'Accuracy: {accuracy:.4f}')
+
+def get_user_model_config(input_dim):
     n_layer = int(input("Jumlah layer: "))
-
-    n_neurons = []
+    
+    n_neurons = [input_dim]
     activations = []
-    loss = ""
+    
+    activation_options = {
+        "1": "linear", "2": "relu", "3": "sigmoid", "4": "tanh", 
+        "5": "softmax", "6": "softplus", "7": "leaky_relu", "8": "mish"
+    }
+    
     for i in range(n_layer):
-        n_neuron_in_layer = int(input(f"Jumlah neuron layer-{i+1}: "))
-        n_neurons.append(n_neuron_in_layer)
-
-        activation_in_layer = input(f"1. Linear\
-                                    \n2. ReLU\
-                                    \n3. Sigmoid\
-                                    \n4. Hyperbolic Tangent (tanh)\
-                                    \n5. Softmax\
-                                    \n6. Softplus\
-                                    \n7. Leaky ReLU\
-                                    \n8. Mish\
-                                    \nFungsi aktivasi di layer-{i+1}: ").lower()
-        
-        match (activation_in_layer):
-            case "1":
-                activation_in_layer = "linear"
-            case "2":
-                activation_in_layer = "relu"
-            case "3":
-                activation_in_layer = "sigmoid"
-            case "4":
-                activation_in_layer = "tanh"
-            case "5":
-                activation_in_layer = "softmax"
-            case "6":
-                activation_in_layer = "softplus"
-            case "7":
-                activation_in_layer = "leaky_relu"
-            case "8":
-                activation_in_layer = "mish"
-            case _:
-                raise ValueError(f"Unsupported activation function: {activation_in_layer}")
-        
-        activations.append(activation_in_layer)
-
-    loss = input(f"1. MSE\
-                    \n2. Binary Cross-Entropy\
-                    \n3. Categorical Cross-Entropy\
-                    \nFungsi loss: ").lower()
+        n_neurons.append(int(input(f"Jumlah neuron layer-{i+1}: ")))
+        act_choice = input("1. Linear\n2. ReLU\n3. Sigmoid\n4. Tanh\n5. Softmax\n6. Softplus\n7. Leaky ReLU\n8. Mish\nFungsi aktivasi: ")
+        activations.append(activation_options.get(act_choice, "relu"))
     
-    match (loss):
-        case "1":
-            loss = "mse"
-        case "2":
-            loss = "binary_cross_entropy"
-        case "3":
-            loss = "categorical_cross_entropy"
-        case _:
-            raise ValueError(f"Unsupported loss function: {loss}")
+    loss_options = {"1": "mse", "2": "binary_cross_entropy", "3": "categorical_cross_entropy"}
+    loss = loss_options.get(input("1. MSE\n2. Binary Cross-Entropy\n3. Categorical Cross-Entropy\nFungsi loss: "), "mse")
     
-    batch_size = int(input(f"Batch size: "))
-    learning_rate = float(input(f"Learning rate: "))
+    batch_size = int(input("Batch size: "))
+    learning_rate = float(input("Learning rate: "))
     n_epoch = int(input("Jumlah epoch: "))
-    verbose = input("Verbose (0/1): ")
-
-    if (verbose != "0" and verbose != "1"):
-        raise ValueError(f"False input - Verbose: {verbose}")
+    verbose = bool(int(input("Verbose (0/1): ")))
     
     regularization = input("Regularization (None/L1/L2): ").lower()
+    reg_lambda = float(input("Regularization Lambda: ")) if regularization in ["l1", "l2"] else 0
+    
+    initialization_options = {"1": "zero", "2": "uniform", "3": "normal", "4": "xavier", "5": "he"}
+    initialization = initialization_options.get(input("1. Zero\n2. Uniform\n3. Normal\n4. Xavier\n5. He\nInitialisasi: "), "xavier")
+    
+    return {
+        "neurons": n_neurons, "activations": activations, "epochs": n_epoch, "loss": loss,
+        "learning_rate": learning_rate, "batch_size": batch_size, "verbose": verbose,
+        "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization
+    }
 
-    if (regularization != "none" and regularization != "l1" and regularization != "l2"):
-        raise ValueError(f"False input - Regularization: {regularization}")
-    
-    reg_lambda = 0
-    if (regularization != "none"):
-        reg_lambda = float(input("Regularization strength (Regularization Lambda): "))
-    
-    rms_norm = input("RMS Norm (True/False): ").lower()
-
-    if (rms_norm != "true" and rms_norm != "false"):
-        raise ValueError(f"False input - RMS Norm: {rms_norm}")
-    
-    initialization = input(f"1. Zero\
-                           \n2. Uniform\
-                           \n3. Normal\
-                           \n4. Xavier\
-                           \n5. He\
-                           \nInitialisasi: ")
-    
-    match (initialization):
-        case "1":
-            initialization = "zero"
-        case "2":
-            initialization = "uniform"
-        case "3":
-            initialization = "normal"
-        case "4":
-            initialization = "xavier"
-        case "5":
-            initialization = "he"
-        case _:
-            raise ValueError(f"Unsupported initialization: {initialization}")
-    
-    model = ANNScratch(
-        neurons=n_neurons,
-        activations=activations,
-        epochs=n_epoch,
-        loss=loss,
-        learning_rate=learning_rate,
-        batch_size=batch_size,
-        verbose=verbose,
-        regularization=regularization,
-        reg_lambda=reg_lambda,
-        initialization=initialization
-    )
-
-    X = np.random.randn(1000, 10)
-    y = np.random.randn(1000, 1)
-
+def train_custom_ann(X, y):
+    config = get_user_model_config(X.shape[1])
+    print(config)
+    model = ANNScratch(**config)
     model.fit(X, y)
 
-    # DUMMY
-    # model = ANNScratch(
-    #     neurons=[10, 50, 150, 50, 1],
-    #     activations=["relu", "tanh", "softplus", "sigmoid"],
-    #     epochs=1000,
-    #     loss="mse",
-    #     learning_rate=1e-4,
-    #     batch_size=32,
-    #     verbose=1,
-    #     # regularization="l2",
-    #     reg_lambda=0.01
-    # )
+if __name__ == "__main__":
+    X, y = load_data()
+    # X, y = load_mnist_from_csv()
+    X = X[:, :5]
+    encoder = LabelEncoder()
+    y_encoded = encoder.fit_transform(y)
+    X_train, X_test, y_train, y_test = preprocess_data(X, y_encoded)
+    print("X train: ", X_train)
+    print("y train: ", y_train)
 
+    # MLP
+    # print("Training scikit-learn MLP...")
+    # train_sklearn_mlp(X_train, X_test, y_train, y_test)
+    
+    # FFNN
+    print("\nTraining custom ANN...")
+    train_custom_ann(X_train, y_train)

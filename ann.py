@@ -25,6 +25,8 @@ class ANNScratch:
         for i in range(len(self.neurons) - 1):
             input_dim = self.neurons[i]
             output_dim = self.neurons[i+1]
+            print("Input dim: ", input_dim)
+            print("Output dim: ", output_dim)
             if self.initialization == "zero":
                 weight = np.zeros((input_dim, output_dim))
                 bias = np.zeros((1, output_dim))
@@ -44,9 +46,13 @@ class ANNScratch:
                 bias = np.random.randn(1, output_dim) * scale
             else:
                 raise ValueError(f"Unsupported initialization method: {self.initialization}")
-        
+            
+            print(f"Weight {i}: ", weight)
+
             self.weights.append(weight)
             self.biases.append(bias)
+        
+        print("Final weight: ", self.weights)
 
     def activation(self, x, func):
         if func == "linear":
@@ -81,8 +87,7 @@ class ANNScratch:
             return 1 - np.tanh(x) ** 2
         # TODO
         elif func == "softmax": # not yet
-            softmax = self.activation(x, "softmax")
-            return softmax * (1 - softmax)
+            return x * (1 - x)
         elif func == "softplus":
             return 1 / (1 + np.exp(-x))
         elif func == "leaky_relu":
@@ -121,43 +126,33 @@ class ANNScratch:
             raise ValueError(f"Unsupported regularization method: {self.regularization}")
         
     def compute_loss(self, X, y):
-        y_pred = self.forward(X)
-        return self.loss(y, y_pred) + self.regularization_loss()
+        y_pred = self.predict(X)
+        return self.loss_function(y, y_pred) + self.regularization_loss()
     
-    def rms_norm(self, X):
+    def apply_rms_norm(self, X):
         rms = np.sqrt(np.mean(X ** 2, axis = 1, keepdims = True) + self.epsilon)
         return X / rms
 
-    def forward(self, X):
-        # TODO
-        self.layer_outputs = []
-        self.layer_inputs = []
-        input_data = X
-        for i in range(len(self.weights)):
-            self.layer_inputs.append(input_data)
-            z = np.dot(input_data, self.weights[i]) + self.biases[i]
-
-            if (self.rms_norm == "true"):
-                input_data = self.rms_norm(input_data)
-                
-            input_data = self.activation(z, self.activations[i])
-            self.layer_outputs.append(input_data)
-        return input_data
-
     def backward(self, X, y):
-        # TODO
         gradients_w = [np.zeros_like(w) for w in self.weights]
         gradients_b = [np.zeros_like(b) for b in self.biases]
-        y_predicted = self.forward(X)
+        y_predicted = self.predict(X)
+
+        # Ensure y_predicted is properly shaped for binary classification
+        if y_predicted.shape[1] == 1:
+            y_predicted = y_predicted.squeeze(axis=1)  # Convert from (n_samples, 1) to (n_samples,)
+
         delta = self.loss_gradient(y, y_predicted)
 
         for i in reversed(range(len(self.weights))):
             output = self.layer_outputs[i]
             input_data = self.layer_inputs[i]
             activation_derivative = self.activation_derivative(output, self.activations[i])
+
             delta = delta * activation_derivative
             gradients_w[i] = np.dot(input_data.T, delta)
             gradients_b[i] = np.sum(delta, axis=0, keepdims=True)
+
             if i > 0:
                 delta = np.dot(delta, self.weights[i].T)
 
@@ -181,36 +176,35 @@ class ANNScratch:
         # TODO
         n_samples = X.shape[0]
         for epoch in range(self.epochs):
-            for batch_start in range(0, n_samples, self.batch_size):
-                batch_end = batch_start + self.batch_size
-                X_batch = X[batch_start:batch_end]
-                y_batch = y[batch_start:batch_end]
+            # for batch_start in range(0, n_samples, self.batch_size):
+            #     batch_end = batch_start + self.batch_size
+            #     X_batch = X[batch_start:batch_end]
+            #     y_batch = y[batch_start:batch_end]
 
-                gradients_w, gradients_b = self.backward(X_batch, y_batch)
-                self.update_weights(gradients_w, gradients_b)
+            #     gradients_w, gradients_b = self.backward(X_batch, y_batch)
+            #     self.update_weights(gradients_w, gradients_b)
             
-
             if epoch % 100 == 0 and self.verbose:
+                print("Weight size: ", len(self.weights[0]))
+                print("Weight: ", self.weights)
+                print("Bias size: ", len(self.biases))
+                print("Bias: ", self.biases)
                 y_predicted = self.predict(X)
-                loss = self.loss_function(y, y_predicted)
-                print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
+                # loss = self.loss_function(y, y_predicted)
+                # print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
+                print(f"Epoch {epoch}/{self.epochs}")
 
     def predict(self, X):
-        return self.forward(X)
+        self.layer_outputs = []
+        self.layer_inputs = []
+        input_data = X
+        for i in range(len(self.weights)):
+            self.layer_inputs.append(input_data)
+            z = np.dot(input_data, self.weights[i]) + self.biases[i]
 
-# X = np.random.randn(1000, 10)
-# y = np.random.randn(1000, 1)
-
-# model = ANNScratch(
-#     neurons=[10, 50, 150, 50, 1],
-#     activations=["relu", "tanh", "softplus", "sigmoid"],
-#     epochs=1000,
-#     loss="mse",
-#     learning_rate=1e-4,
-#     batch_size=32,
-#     verbose=1,
-#     # regularization="l2",
-#     reg_lambda=0.01
-# )
-
-# model.fit(X, y)
+            if (self.rms_norm == "true"):
+                input_data = self.rms_norm(input_data)
+                
+            input_data = self.activation(z, self.activations[i])
+            self.layer_outputs.append(input_data)
+        return input_data
