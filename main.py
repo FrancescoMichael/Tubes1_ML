@@ -20,7 +20,9 @@ def load_data():
     return X, y
 
 def load_mnist_from_csv():
+    print("Loading...")
     df = pd.read_csv("mnist.csv")
+    # df = pd.read_csv("test.csv")
     y = df["label"].values
     X = df.drop(columns=["label"]).values
     return X, y
@@ -55,6 +57,9 @@ def get_user_model_config(input_dim):
         n_neurons.append(int(input(f"Jumlah neuron layer-{i+1}: ")))
         act_choice = input("1. Linear\n2. ReLU\n3. Sigmoid\n4. Tanh\n5. Softmax\n6. Softplus\n7. Leaky ReLU\n8. Mish\nFungsi aktivasi: ")
         activations.append(activation_options.get(act_choice, "relu"))
+
+    act_choice = input("1. Linear\n2. ReLU\n3. Sigmoid\n4. Tanh\n5. Softmax\n6. Softplus\n7. Leaky ReLU\n8. Mish\nFungsi aktivasi output layer: ")
+    activations.append(activation_options.get(act_choice, "relu"))
     
     loss_options = {"1": "mse", "2": "binary_cross_entropy", "3": "categorical_cross_entropy"}
     loss = loss_options.get(input("1. MSE\n2. Binary Cross-Entropy\n3. Categorical Cross-Entropy\nFungsi loss: "), "mse")
@@ -83,12 +88,18 @@ def train_custom_ann(X, y):
     model.fit(X, y)
 
 if __name__ == "__main__":
-    X, y = load_data()
-    # X, y = load_mnist_from_csv()
+    # X, y = load_data()
+    X, y = load_mnist_from_csv()
+    print("X: \n", X)
     X = X[:, :5]
+
     encoder = LabelEncoder()
     y_encoded = encoder.fit_transform(y)
     X_train, X_test, y_train, y_test = preprocess_data(X, y_encoded)
+    
+    # X_train = X
+    # y_train = y
+
     print("X train: ", X_train)
     print("y train: ", y_train)
 

@@ -19,12 +19,14 @@ class ANNScratch:
         self.biases = []
         self.initialize_weights()
     
+    # array of (array of (one neuron to all next neuron))
     def initialize_weights(self):
         weight = []
         bias = []
         for i in range(len(self.neurons) - 1):
             input_dim = self.neurons[i]
             output_dim = self.neurons[i+1]
+
             print("Input dim: ", input_dim)
             print("Output dim: ", output_dim)
             if self.initialization == "zero":
@@ -51,6 +53,39 @@ class ANNScratch:
 
             self.weights.append(weight)
             self.biases.append(bias)
+        
+        print("Initial weight: ", self.weights)
+
+    def initialize_output_weights(self, y_dim):
+        n_layer = len(self.neurons)
+
+        input_dim = self.neurons[n_layer-1]
+        output_dim = y_dim
+
+        print("Input dim: ", input_dim)
+        print("Output dim: ", output_dim)
+        if self.initialization == "zero":
+            weight = np.zeros((input_dim, output_dim))
+            bias = np.zeros((1, output_dim))
+        elif self.initialization == "uniform":
+            weight = np.random.uniform(-1, 1, (input_dim, output_dim))
+            bias = np.random.uniform(-1, 1, (1, output_dim))
+        elif self.initialization == "normal":
+            weight = np.random.randn(input_dim, output_dim) * 0.1
+            bias = np.random.randn(1, output_dim) * 0.1
+        elif self.initialization == "xavier":
+            scale = np.sqrt(2.0 / (input_dim + output_dim))
+            weight = np.random.randn(input_dim, output_dim) * scale
+            bias = np.random.randn(1, output_dim) * scale
+        elif self.initialization == "he":
+            scale = np.sqrt(2.0 / input_dim)
+            weight = np.random.randn(input_dim, output_dim) * scale
+            bias = np.random.randn(1, output_dim) * scale
+        else:
+            raise ValueError(f"Unsupported initialization method: {self.initialization}")
+
+        self.weights.append(weight)
+        self.biases.append(bias)
         
         print("Final weight: ", self.weights)
 
@@ -136,22 +171,27 @@ class ANNScratch:
     def backward(self, X, y):
         gradients_w = [np.zeros_like(w) for w in self.weights]
         gradients_b = [np.zeros_like(b) for b in self.biases]
-        y_predicted = self.predict(X)
+        
+        y_predicted = self.predict(X) # forward
 
         # Ensure y_predicted is properly shaped for binary classification
         if y_predicted.shape[1] == 1:
             y_predicted = y_predicted.squeeze(axis=1)  # Convert from (n_samples, 1) to (n_samples,)
 
-        delta = self.loss_gradient(y, y_predicted)
+        # reshape to be consistent with output shape
+        delta = self.loss_gradient(y, y_predicted).reshape(-1,1) 
 
         for i in reversed(range(len(self.weights))):
+
             output = self.layer_outputs[i]
             input_data = self.layer_inputs[i]
-            activation_derivative = self.activation_derivative(output, self.activations[i])
 
-            delta = delta * activation_derivative
-            gradients_w[i] = np.dot(input_data.T, delta)
-            gradients_b[i] = np.sum(delta, axis=0, keepdims=True)
+            activation_derivative = self.activation_derivative(output, self.activations[i]) 
+
+            delta = (delta * activation_derivative)
+
+            gradients_w[i] = np.dot(input_data.T, delta) 
+            gradients_b[i] = np.sum(delta, axis=0, keepdims=True) 
 
             if i > 0:
                 delta = np.dot(delta, self.weights[i].T)
@@ -168,43 +208,50 @@ class ANNScratch:
     def update_weights(self, gradients_w, gradients_b):
         # TODO
         for i in range(len(self.weights)):
-            # print(f" Layer {i}, Gradients W: {np.mean(np.abs(gradients_w[i]))}, Gradients B: {np.mean(np.abs(gradients_b[i]))}")
             self.weights[i] -= self.learning_rate * gradients_w[i]
             self.biases[i] -= self.learning_rate * gradients_b[i]
 
     def fit(self, X, y):
         # TODO
+        self.initialize_output_weights(y.ndim)
+
         n_samples = X.shape[0]
         for epoch in range(self.epochs):
-            # for batch_start in range(0, n_samples, self.batch_size):
-            #     batch_end = batch_start + self.batch_size
-            #     X_batch = X[batch_start:batch_end]
-            #     y_batch = y[batch_start:batch_end]
+            for batch_start in range(0, n_samples, self.batch_size):
+                batch_end = batch_start + self.batch_size
+                X_batch = X[batch_start:batch_end]
+                y_batch = y[batch_start:batch_end]
 
-            #     gradients_w, gradients_b = self.backward(X_batch, y_batch)
-            #     self.update_weights(gradients_w, gradients_b)
+                gradients_w, gradients_b = self.backward(X_batch, y_batch)
+                self.update_weights(gradients_w, gradients_b)
             
             if epoch % 100 == 0 and self.verbose:
                 print("Weight size: ", len(self.weights[0]))
                 print("Weight: ", self.weights)
                 print("Bias size: ", len(self.biases))
                 print("Bias: ", self.biases)
-                y_predicted = self.predict(X)
-                # loss = self.loss_function(y, y_predicted)
-                # print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
-                print(f"Epoch {epoch}/{self.epochs}")
 
-    def predict(self, X):
+                y_predicted = self.predict(X)
+
+                print("Y predicted: \n", y_predicted)
+                print("Y: \n", y)
+                loss = self.loss_function(y, y_predicted)
+                print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
+                # print(f"Epoch {epoch}/{self.epochs}")
+
+    def predict(self, X): # forward
         self.layer_outputs = []
         self.layer_inputs = []
         input_data = X
         for i in range(len(self.weights)):
+            
             self.layer_inputs.append(input_data)
-            z = np.dot(input_data, self.weights[i]) + self.biases[i]
+            z = np.dot(input_data, self.weights[i]) + self.biases[i] 
 
             if (self.rms_norm == "true"):
-                input_data = self.rms_norm(input_data)
+                input_data = self.apply_rms_norm(input_data)
                 
-            input_data = self.activation(z, self.activations[i])
+            input_data = self.activation(z, self.activations[i]) #output
             self.layer_outputs.append(input_data)
+
         return input_data
