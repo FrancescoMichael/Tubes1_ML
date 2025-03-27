@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 class ANNScratch:
     def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None):
@@ -270,6 +271,9 @@ class ANNScratch:
 
         self.initialize_output_weights(y.shape[1])
 
+        self.loss_x = []
+        self.loss_y = []
+
         n_samples = X.shape[0]
         for epoch in range(self.epochs):
             indices = np.arange(n_samples)
@@ -295,6 +299,15 @@ class ANNScratch:
                 loss = self.loss_function(y, y_predicted)
                 print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
                 # print(f"Epoch {epoch}/{self.epochs}")
+
+                self.loss_x.append(epoch)
+                self.loss_y.append(loss)
+
+        plt.figure(1)
+        plt.plot(self.loss_x, self.loss_y)
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.draw()
 
     def predict(self, X): # forward
         self.layer_outputs = []
