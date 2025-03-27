@@ -89,25 +89,41 @@ class ANNScratch:
         
         # print("Final weight: ", self.weights)
 
+    def safe_exp(self, x, thr=700, inf=np.inf):
+        x_cop = np.copy(x)
+
+        overflow = x_cop > thr
+        underflow = x_cop < -thr
+        
+        result = np.zeros_like(x_cop, dtype=np.float64)
+        
+        safe_mask = ~(overflow | underflow)
+        result[safe_mask] = np.exp(x_cop[safe_mask])
+        
+        result[overflow] = inf
+        result[underflow] = 0.0
+        
+        return result
+
     def activation(self, x, func):
         if func == "linear":
             return x
         elif func == "relu":
             return np.maximum(0, x)
         elif func == "sigmoid":
-            return 1 / (1 + np.exp(-x))
+            return 1 / (1 + self.safe_exp(-x))
         elif func == "tanh":
             return np.tanh(x)
         # TODO
         elif func == "softmax": 
-            exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+            exp_x = self.safe_exp(x - np.max(x, axis=1, keepdims=True))
             return exp_x / np.sum(exp_x, axis=1, keepdims=True)
         elif func == "softplus":
-            return np.log(1 + np.exp(x))
+            return np.log(1 + self.safe_exp(x))
         elif func == "leaky_relu":
             return np.where(x > 0, x, self.alpha * x)
         elif func == "mish":
-            return x * np.tanh(np.log(1 + np.exp(x)))
+            return x * np.tanh(np.log(1 + self.safe_exp(x)))
         else:
             raise ValueError(f"Unsupported activation function: {func}")
     
@@ -124,11 +140,11 @@ class ANNScratch:
         elif func == "softmax": # not yet
             return x * (1 - x)
         elif func == "softplus":
-            return 1 / (1 + np.exp(-x))
+            return 1 / (1 + self.safe_exp(-x))
         elif func == "leaky_relu":
             return np.where(x > 0, 1, self.alpha)
         elif func == "mish":
-            return np.tanh(np.log(1 + np.exp(x))) + x * (1 - np.tanh(np.log(1 + np.exp(x))) ** 2)
+            return np.tanh(np.log(1 + self.safe_exp(x))) + x * (1 - np.tanh(np.log(1 + self.safe_exp(x))) ** 2)
         else:
             raise ValueError(f"Unsupported activation function: {func}")
     
