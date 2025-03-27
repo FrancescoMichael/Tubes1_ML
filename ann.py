@@ -1,8 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import pickle
+import os
+from visualizer import ANNVisualizer
 
 class ANNScratch:
-    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None):
+    def __init__(self, neurons, activations, loss, learning_rate,  epochs = 1000, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = "true"):
         self.neurons = neurons
         self.activations = activations
         self.epochs = epochs
@@ -20,7 +22,6 @@ class ANNScratch:
         self.biases = []
         self.initialize_weights()
     
-    # array of (array of (one neuron to all next neuron))
     def initialize_weights(self):
         weight = []
         bias = []
@@ -50,14 +51,8 @@ class ANNScratch:
             else:
                 raise ValueError(f"Unsupported initialization method: {self.initialization}")
             
-            # print(f"Weight {i}: ", weight)
-            # print(f"Weight {i}: ", weight)
-
             self.weights.append(weight)
             self.biases.append(bias)
-        
-        # print("Initial weight: ", self.weights)
-        # print("Initial weight: ", self.weights)
 
     def initialize_output_weights(self, y_dim):
         n_layer = len(self.neurons)
@@ -90,9 +85,7 @@ class ANNScratch:
         self.weights.append(weight)
         self.biases.append(bias)
         
-        # print("Final weight: ", self.weights)
-
-    def safe_exp(self, x, thr=700, inf=np.float64(1e18)):
+    def safe_exp(self, x, thr=700, inf=np.inf):
         x_cop = np.copy(x)
 
         overflow = x_cop > thr
@@ -117,10 +110,9 @@ class ANNScratch:
             return 1 / (1 + self.safe_exp(-x))
         elif func == "tanh":
             return np.tanh(x)
-        # TODO
-        elif func == "softmax": 
-            exp_x = self.safe_exp(x - np.max(x, axis=1, keepdims=True))
-            return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+        if func == "softmax":
+            exps = np.exp(x - np.max(x, axis=1, keepdims=True))
+            return exps / np.sum(exps, axis=1, keepdims=True)
         elif func == "softplus":
             return np.log(1 + self.safe_exp(x))
         elif func == "leaky_relu":
@@ -139,8 +131,7 @@ class ANNScratch:
             return x * (1 - x)
         elif func == "tanh":
             return 1 - np.tanh(x) ** 2
-        # TODO
-        elif func == "softmax": # not yet
+        elif func == "softmax":
             return x * (1 - x)
         elif func == "softplus":
             return 1 / (1 + self.safe_exp(-x))
@@ -153,13 +144,13 @@ class ANNScratch:
     
     def loss_function(self, y_actual, y_predicted):
         if self.loss == "mse":
-            # print("Y actual", y_actual.shape)
-            # print("Y predicted", y_predicted.shape)
             return np.mean((y_actual - y_predicted) ** 2)
         elif self.loss == "binary_cross_entropy":
-            return -np.mean(y_actual * np.log(y_predicted + self.epsilon) + (1 - y_actual) * np.log(1 - y_predicted + self.epsilon))
+            y_predicted = np.clip(y_predicted, 1e-15, 1-1e-15)
+            return -np.mean(y_actual * np.log(y_predicted) + (1-y_actual) * np.log(1-y_predicted))
         elif self.loss == "categorical_cross_entropy":
-            return -np.mean(np.sum(y_actual * np.log(y_predicted + self.epsilon)))
+            y_predicted = np.clip(y_predicted, 1e-15, 1-1e-15)
+            return -np.mean(np.sum(y_actual * np.log(y_predicted), axis=1))
         else:
             raise ValueError(f"Unsupported loss function: {self.loss}")
 
@@ -193,43 +184,33 @@ class ANNScratch:
         gradients_w = [np.zeros_like(w) for w in self.weights]
         gradients_b = [np.zeros_like(b) for b in self.biases]
         
-        y_predicted = self.predict(X) # forward
+        y_predicted = self.predict(X)
 
-        if np.isnan(np.sum(X)) or np.isnan(np.sum(y)):
+        if np.any(np.isnan(X)) or np.any(np.isnan(y)):
             print("WARNING: Input data contains NaN")
-            assert False
+            return gradients_w, gradients_b
         
-        # Validate predictions
-        if np.isnan(np.sum(y_predicted)):
-            print("WARNING: Prediction contains NaN")
-            assert False
+        if np.any(np.isnan(y_predicted)):
+            print("WARNING: Prediction contains NaN - adjusting learning rate")
+            self.learning_rate *= 0.8
+            return gradients_w, gradients_b
 
-        # Ensure y_predicted is properly shaped for binary classification
-        # if y_predicted.shape[1] == 1:
-        #     y_predicted = y_predicted.squeeze()  # Convert from (n_samples, 1) to (n_samples,)
-
-        # reshape to be consistent with output shape
-        # print("Y_PREDICTED", y_predicted)
-        # print("Y", y)
         delta = self.loss_gradient(y, y_predicted)
-        # print("DELTA", delta)
 
+        max_grad_norm = 1.0
         for i in reversed(range(len(self.weights))):
-
             output = self.layer_outputs[i]
             input_data = self.layer_inputs[i]
-
-            activation_derivative = self.activation_derivative(output, self.activations[i]) 
-
-            # print("Activ der", activation_derivative)
-            assert delta.shape == activation_derivative.shape
-
+            
+            activation_derivative = self.activation_derivative(output, self.activations[i])
             delta = np.multiply(delta, activation_derivative)
+            
+            grad_norm = np.linalg.norm(delta)
+            if grad_norm > max_grad_norm:
+                delta = delta * (max_grad_norm / grad_norm)
 
-            # print("Multiplied delta", delta)
-
-            gradients_w[i] = np.matmul(input_data.T, delta) 
-            gradients_b[i] = np.sum(delta, axis=0, keepdims=True) 
+            gradients_w[i] = np.matmul(input_data.T, delta) / X.shape[0]
+            gradients_b[i] = np.sum(delta, axis=0, keepdims=True) / X.shape[0]
 
             if i > 0:
                 delta = np.matmul(delta, self.weights[i].T)
@@ -241,35 +222,15 @@ class ANNScratch:
             for i in range(len(self.weights)):
                 gradients_w[i] += self.reg_lambda * 2 * self.weights[i]
 
-        # print("Gradient W", gradients_w)
-        # print("Gradient B", gradients_b)
-        gradients_w = [np.clip(grad, -30, 30) for grad in gradients_w]
-        gradients_b = [np.clip(grad, -30, 30) for grad in gradients_b]
         return gradients_w, gradients_b
         
     def update_weights(self, gradients_w, gradients_b):
-        # TODO
-        # for i in range(len(self.weights)):
-        #     self.weights[i] -= self.learning_rate * gradients_w[i]
-        #     self.biases[i] -= self.learning_rate * gradients_b[i]
-        # print("Before update:")
-        # original_weights = [np.copy(w) for w in self.weights]
         
         for i in range(len(self.weights)):
-            # print(f"Layer {i} weight change: {np.mean(gradients_w[i])}")
             self.weights[i] -= self.learning_rate * gradients_w[i]
             self.biases[i] -= self.learning_rate * gradients_b[i]
-        
-        # # print("After update:")
-        # for i, (orig, updated) in enumerate(zip(original_weights, self.weights)):
-        #     weight_change = np.mean(np.abs(updated - orig))
-        #     # print(f"Layer {i} total weight change: {weight_change}")
-        #     if weight_change == 0:
-        #         print(f"WARNING: Layer {i} weights did not change!")
-        #         # assert False
 
     def fit(self, X, y):
-        # TODO
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
@@ -292,28 +253,16 @@ class ANNScratch:
                 gradients_w, gradients_b = self.backward(X_batch, y_batch)
                 self.update_weights(gradients_w, gradients_b)
             
-            if self.verbose: # and epoch % 10 == 0:
-                print("Weight size: ", len(self.weights[0]))
-                print("Weight: ", self.weights)
-                print("Bias size: ", len(self.biases))
-                # print("Bias: ", self.biases)
-
+            if self.verbose:
                 y_predicted = self.predict(X)
 
                 loss = self.loss_function(y, y_predicted)
-                print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
-                # print(f"Epoch {epoch}/{self.epochs}")
+                print(f"Epoch {epoch + 1}/{self.epochs}, Loss: {loss:.4f}")
 
                 self.loss_x.append(epoch)
                 self.loss_y.append(loss)
 
-        plt.figure(1)
-        plt.plot(self.loss_x, self.loss_y)
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
-        plt.draw()
-
-    def predict(self, X): # forward
+    def predict(self, X):
         self.layer_outputs = []
         self.layer_inputs = []
         input_data = X
@@ -326,12 +275,110 @@ class ANNScratch:
             if (self.rms_norm == "true"):
                 input_data = self.apply_rms_norm(input_data)
                 
-            input_data = self.activation(z, self.activations[i]) #output
+            input_data = self.activation(z, self.activations[i])
             self.layer_outputs.append(input_data)
-            # print("Input_data shape", input_data.shape)
-        # print("Result fit", input_data)
+
         row_sums = input_data.sum(axis=1)
         normalized_arr = np.divide(input_data, row_sums[:, np.newaxis], 
                                 out=np.zeros_like(input_data, dtype=float), 
                                 where=row_sums[:, np.newaxis]!=0)
         return normalized_arr
+    
+    def get_model_state(self):
+        state = {
+            'weights': [w.copy() for w in self.weights],
+            'biases': [b.copy() for b in self.biases],
+            'neurons': self.neurons.copy(),
+            'activations': self.activations.copy(),
+            'hyperparameters': {
+                'epochs': self.epochs,
+                'loss': self.loss,
+                'learning_rate': self.learning_rate,
+                'initialization': self.initialization,
+                'batch_size': self.batch_size,
+                'regularization': self.regularization,
+                'reg_lambda': self.reg_lambda,
+                'epsilon': self.epsilon,
+                'alpha': self.alpha,
+                'rms_norm': self.rms_norm
+            }
+        }
+        
+        if hasattr(self, 'weight_gradients'):
+            state['weight_gradients'] = [wg.copy() for wg in self.weight_gradients]
+        if hasattr(self, 'bias_gradients'):
+            state['bias_gradients'] = [bg.copy() for bg in self.bias_gradients]
+        if hasattr(self, 'layer_outputs'):
+            state['layer_outputs'] = [out.copy() for out in self.layer_outputs]
+        if hasattr(self, 'layer_inputs'):
+            state['layer_inputs'] = [inp.copy() for inp in self.layer_inputs]
+        
+        return state
+
+    def save_model(self, filepath):
+        try:
+            model_state = self.get_model_state()
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'wb') as f:
+                pickle.dump(model_state, f)
+            print(f"Model saved successfully to {filepath}")
+        except Exception as e:
+            print(f"Error saving model: {str(e)}")
+            raise
+    
+    @classmethod
+    def load_model(cls, filepath, input_dim=None, output_dim=None):
+        try:
+            with open(filepath, 'rb') as f:
+                model_state = pickle.load(f)
+            
+            if input_dim and model_state['neurons'][0] != input_dim:
+                raise ValueError(f"Model expects {model_state['neurons'][0]} input features, got {input_dim}")
+            if output_dim and model_state['neurons'][-1] != output_dim:
+                raise ValueError(f"Model expects {model_state['neurons'][-1]} outputs, got {output_dim}")
+            
+            model = cls(
+                neurons=model_state['neurons'],
+                activations=model_state['activations'],
+                epochs=model_state['hyperparameters']['epochs'],
+                loss=model_state['hyperparameters']['loss'],
+                learning_rate=model_state['hyperparameters']['learning_rate'],
+                initialization=model_state['hyperparameters']['initialization'],
+                batch_size=model_state['hyperparameters']['batch_size'],
+                regularization=model_state['hyperparameters']['regularization'],
+                reg_lambda=model_state['hyperparameters']['reg_lambda'],
+                epsilon=model_state['hyperparameters']['epsilon'],
+                alpha=model_state['hyperparameters']['alpha'],
+                rms_norm=model_state['hyperparameters']['rms_norm']
+            )
+            
+            model.weights = [w.copy() for w in model_state['weights']]
+            model.biases = [b.copy() for b in model_state['biases']]
+            
+            if 'weight_gradients' in model_state:
+                model.weight_gradients = [wg.copy() for wg in model_state['weight_gradients']]
+            if 'bias_gradients' in model_state:
+                model.bias_gradients = [bg.copy() for bg in model_state['bias_gradients']]
+            if 'layer_outputs' in model_state:
+                model.layer_outputs = [out.copy() for out in model_state['layer_outputs']]
+            if 'layer_inputs' in model_state:
+                model.layer_inputs = [inp.copy() for inp in model_state['layer_inputs']]
+            
+            print(f"Model loaded successfully from {filepath}")
+            return model
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            raise
+
+    def visualize(self):
+        visualizer = ANNVisualizer(self)
+        
+        print("\nNetwork Architecture Visualization:")
+        visualizer.visualize_network()
+        
+        print("\nWeight Distributions:")
+        visualizer.plot_weight_distribution()
+        
+        if hasattr(self, 'weight_gradients'):
+            print("\nGradient Distributions:")
+            visualizer.plot_gradient_distribution()
