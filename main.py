@@ -1,28 +1,18 @@
 from sklearn.datasets import fetch_openml
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import LabelEncoder
 from ann import ANNScratch
+from visualizer import ANNVisualizer
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import time
-import matplotlib.pyplot as plt
-import time
 
 def load_data():
-    data = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
-    X, y = data
-    X = X / 255.0
-
-    df = pd.DataFrame(X)
-    df.insert(0, "label", y)  # Menambahkan label sebagai kolom pertama
-    
-    df.to_csv("mnist.csv", index=False)
-    print("Dataset telah disimpan sebagai 'mnist.csv'.")
-    return X, y
+    """Load MNIST data and normalize pixel values"""
+    X, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
+    return X / 255.0, y
 
 def load_mnist_from_csv():
     print("Loading...")
@@ -38,29 +28,30 @@ def load_mnist_from_csv():
     return X, y_transformed
 
 def preprocess_data(X, y, test_size=0.3, random_state=42):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
     return X_train, X_test, y_train, y_test
 
 def train_sklearn_mlp(config, X_train, X_test, y_train, y_test):
-
-    reg_lambda = 1e-4
-    if config['regularization'] == 'l2':
-        reg_lambda = config['reg_lambda']
-
-    mlp = MLPClassifier(hidden_layer_sizes=config['neurons'], max_iter=config['epochs'], alpha=reg_lambda,
-                        solver='sgd', verbose=10, random_state=42, learning_rate_init=config['learning_rate'])
+    mlp = MLPClassifier(
+        hidden_layer_sizes=config['neurons'],
+        max_iter=config['epochs'],
+        alpha=config['reg_lambda'] if config['regularization'] == 'l2' else 1e-4,
+        # solver='sgd',
+        verbose=10,
+        random_state=42,
+        learning_rate_init=config['learning_rate'],
+        n_iter_no_change=config['epochs'],
+        early_stopping=False
+    )
     mlp.fit(X_train, y_train)
     y_pred = mlp.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    print(f'Accuracy: {accuracy:.4f}')
-
-    plt.figure(2)
-    print(mlp.loss_curve_)
-    plt.plot([i+1 for i in range(len(mlp.loss_curve_))], mlp.loss_curve_)
-    plt.draw()
+    print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+    return mlp.loss_curve_
 
 def get_user_model_config(input_dim):
     n_layer = int(input("Jumlah layer: "))
@@ -101,43 +92,141 @@ def get_user_model_config(input_dim):
         "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization
     }
 
-def train_custom_ann(config, X, y, X_test, y_test):
+def train_custom_ann(config, X_train, y_train):
     model = ANNScratch(**config)
-    model.fit(X, y)
+    model.fit(X_train, y_train)
+    model.save_model('saved_models/my_ann_model.pkl')
+    return model.loss_x, model.loss_y
 
-    probablity = model.predict(X_test)
-    predicted = probablity.argmax(axis = 1) + 1
-    print(predicted)
-    y_test_act = y_test.argmax(axis = 1) + 1
-    print("Accuracy", accuracy_score(y_test_act,predicted))
-
-
-if __name__ == "__main__":
-    # X, y = load_data()
-    X, y = load_mnist_from_csv()
-    print("X: \n", X)
-
-    encoder = LabelEncoder()
-    # y_encoded = encoder.fit_transform(y)
-    X_train, X_test, y_train, y_test = preprocess_data(X, y)
-    
-    # X_train = X
-    # y_train = y
-
-    print("X train: ", X_train.shape)
-    print("y train: ", y_train.shape)
-
-    config = get_user_model_config(X.shape[1])
-
-    # MLP
-    print("Training scikit-learn MLP...")
-    train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
-    
-    # FFNN
-    # X_train, y_train = np.array([[0.05, 0.1]]), np.array([[0.01, 0.99]])
-    print("\nTraining custom ANN...")
-    train_custom_ann(config, X_train, y_train, X_test, y_test)
-
+def plot_results(mlp_loss, custom_loss):
+    plt.figure(figsize=(10, 6))
+    plt.plot(mlp_loss, label='Scikit-learn MLP', color='blue')
+    plt.plot(custom_loss, label='Custom ANN', color='red')
+    plt.title('Training Loss Comparison')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
     plt.show()
 
-    time.sleep(10)
+def main():
+    model = None
+    try:
+        # X, y = load_mnist_from_csv()
+        X, y = load_data()
+        X_train, X_test, y_train, y_test = preprocess_data(X, LabelEncoder().fit_transform(y))
+        
+        use_saved = input("\nLoad existing model? (y/n): ").lower() == 'y'
+        custom_loss = []
+        
+        if use_saved:
+            try:
+                model_path = input("Enter model path (default: saved_models/my_ann_model.pkl): ") or "saved_models/my_ann_model.pkl"
+                model = ANNScratch.load_model(model_path)
+                print("Loaded existing model successfully!")
+                
+                if model.neurons[0] != X_train.shape[1]:
+                    print(f"Error: Model expects input dimension {model.neurons[0]} but data has {X_train.shape[1]}")
+                    print("Cannot continue with loaded model - creating new model instead")
+                    use_saved = False
+                    model = None
+                    raise ValueError("Input dimension mismatch")
+                
+                continue_train = input("Continue training this model? (y/n): ").lower() == 'y'
+                if continue_train:
+                    try:
+                        epochs = int(input("Epochs to train: "))
+                        model.epochs = epochs
+                        model.fit(X_train, y_train)
+                        custom_loss = model.loss_y
+                    except ValueError:
+                        print("Invalid number of epochs - using default epochs")
+                        model.fit(X_train, y_train)
+                        custom_loss = model.loss_y
+            except Exception as e:
+                print(f"Error loading/continuing model: {e}")
+                print("Proceeding with new model training...")
+                use_saved = False
+                model = None
+        
+        if not use_saved:
+            try:
+                config = get_user_model_config(X.shape[1])
+                
+                print("\nTraining scikit-learn MLP...")
+                mlp_loss = train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
+                
+                print("\nTraining custom ANN...")
+                model = ANNScratch(**config)
+                model.fit(X_train, y_train)
+                custom_epochs, custom_loss = range(len(model.loss_y)), model.loss_y
+            except KeyboardInterrupt:
+                print("\nTraining interrupted by user")
+                return
+            except Exception as e:
+                print(f"\nError during training: {e}")
+                raise
+        else:
+            print("\nTraining scikit-learn MLP for comparison...")
+            config = {
+                'neurons': model.neurons,
+                'epochs': model.epochs,
+                'learning_rate': model.learning_rate,
+                'regularization': model.regularization,
+                'reg_lambda': model.reg_lambda
+            }
+            mlp_loss = train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
+        
+        plot_results(mlp_loss, custom_loss)
+
+        if model is not None:
+            visualize = input("\nVisualize model details? (y/n): ").lower() == 'y'
+            if visualize:
+                visualizer = ANNVisualizer(model)
+                
+                # Network architecture
+                if input("Show network architecture? (y/n): ").lower() == 'y':
+                    visualizer.visualize_network()
+                
+                # Weight distributions
+                if input("Show weight distributions? (y/n): ").lower() == 'y':
+                    layers = input("Enter layers to show (comma separated, leave empty for all): ")
+                    layers = [int(l) for l in layers.split(',')] if layers else None
+                    visualizer.plot_weight_distribution(layers=layers)
+                
+                # Gradient distributions
+                if hasattr(model, 'weight_gradients'):
+                    if input("Show gradient distributions? (y/n): ").lower() == 'y':
+                        layers = input("Enter layers to show (comma separated, leave empty for all): ")
+                        layers = [int(l) for l in layers.split(',')] if layers else None
+                        visualizer.plot_gradient_distribution(layers=layers)
+                
+                # Neuron-specific inspection
+                if input("Inspect specific neuron? (y/n): ").lower() == 'y':
+                    try:
+                        layer = int(input("Enter layer index: "))
+                        neuron = int(input("Enter neuron index: "))
+                        visualizer.plot_neuron_weights(layer, neuron)
+                        if hasattr(model, 'weight_gradients'):
+                            visualizer.plot_neuron_gradients(layer, neuron)
+                    except (ValueError, IndexError) as e:
+                        print(f"Invalid neuron specification: {e}")
+        
+        if model is not None:
+            save_model = input("\nSave this model? (y/n): ").lower() == 'y'
+            if save_model:
+                model_path = input("Enter save path (default: saved_models/my_ann_model.pkl): ") or "saved_models/my_ann_model.pkl"
+                try:
+                    model.save_model(model_path)
+                    print("Model saved successfully!")
+                except Exception as e:
+                    print(f"Error saving model: {e}")
+        else:
+            print("\nNo model available to save.")
+                
+    except Exception as e:
+        print(f"\nError: {str(e)}")
+        raise
+
+if __name__ == "__main__":
+    main()
