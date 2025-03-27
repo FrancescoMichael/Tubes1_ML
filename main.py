@@ -6,6 +6,11 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from ann import ANNScratch
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+import matplotlib.pyplot as plt
+import time
 
 def load_data():
     data = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
@@ -24,8 +29,13 @@ def load_mnist_from_csv():
     df = pd.read_csv("mnist.csv")
     # df = pd.read_csv("test.csv")
     y = df["label"].values
+    y_transformed = np.zeros((len(y), 10))
+    labels = y - 1
+    for i, label in enumerate(labels):
+        y_transformed[i, :] = 0 
+        y_transformed[i, label] = 1 
     X = df.drop(columns=["label"]).values
-    return X, y
+    return X, y_transformed
 
 def preprocess_data(X, y, test_size=0.3, random_state=42):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
@@ -34,13 +44,23 @@ def preprocess_data(X, y, test_size=0.3, random_state=42):
     X_test = scaler.transform(X_test)
     return X_train, X_test, y_train, y_test
 
-def train_sklearn_mlp(X_train, X_test, y_train, y_test):
-    mlp = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=3, alpha=1e-4,
-                        solver='sgd', verbose=10, random_state=42, learning_rate_init=0.1)
+def train_sklearn_mlp(config, X_train, X_test, y_train, y_test):
+
+    reg_lambda = 1e-4
+    if config['regularization'] == 'l2':
+        reg_lambda = config['reg_lambda']
+
+    mlp = MLPClassifier(hidden_layer_sizes=config['neurons'], max_iter=config['epochs'], alpha=reg_lambda,
+                        solver='sgd', verbose=10, random_state=42, learning_rate_init=config['learning_rate'])
     mlp.fit(X_train, y_train)
     y_pred = mlp.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f'Accuracy: {accuracy:.4f}')
+
+    plt.figure(2)
+    print(mlp.loss_curve_)
+    plt.plot([i+1 for i in range(len(mlp.loss_curve_))], mlp.loss_curve_)
+    plt.draw()
 
 def get_user_model_config(input_dim):
     n_layer = int(input("Jumlah layer: "))
@@ -81,32 +101,43 @@ def get_user_model_config(input_dim):
         "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization
     }
 
-def train_custom_ann(X, y):
-    config = get_user_model_config(X.shape[1])
-    print(config)
+def train_custom_ann(config, X, y, X_test, y_test):
     model = ANNScratch(**config)
     model.fit(X, y)
+
+    probablity = model.predict(X_test)
+    predicted = probablity.argmax(axis = 1) + 1
+    print(predicted)
+    y_test_act = y_test.argmax(axis = 1) + 1
+    print("Accuracy", accuracy_score(y_test_act,predicted))
+
 
 if __name__ == "__main__":
     # X, y = load_data()
     X, y = load_mnist_from_csv()
     print("X: \n", X)
-    X = X[:, :5]
 
     encoder = LabelEncoder()
-    y_encoded = encoder.fit_transform(y)
-    X_train, X_test, y_train, y_test = preprocess_data(X, y_encoded)
+    # y_encoded = encoder.fit_transform(y)
+    X_train, X_test, y_train, y_test = preprocess_data(X, y)
     
     # X_train = X
     # y_train = y
 
-    print("X train: ", X_train)
-    print("y train: ", y_train)
+    print("X train: ", X_train.shape)
+    print("y train: ", y_train.shape)
+
+    config = get_user_model_config(X.shape[1])
 
     # MLP
-    # print("Training scikit-learn MLP...")
-    # train_sklearn_mlp(X_train, X_test, y_train, y_test)
+    print("Training scikit-learn MLP...")
+    train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
     
     # FFNN
+    # X_train, y_train = np.array([[0.05, 0.1]]), np.array([[0.01, 0.99]])
     print("\nTraining custom ANN...")
-    train_custom_ann(X_train, y_train)
+    train_custom_ann(config, X_train, y_train, X_test, y_test)
+
+    plt.show()
+
+    time.sleep(10)
