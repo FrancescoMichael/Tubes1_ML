@@ -51,10 +51,12 @@ class ANNScratch:
                 raise ValueError(f"Unsupported initialization method: {self.initialization}")
             
             # print(f"Weight {i}: ", weight)
+            # print(f"Weight {i}: ", weight)
 
             self.weights.append(weight)
             self.biases.append(bias)
         
+        # print("Initial weight: ", self.weights)
         # print("Initial weight: ", self.weights)
 
     def initialize_output_weights(self, y_dim):
