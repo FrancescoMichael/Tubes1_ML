@@ -6,6 +6,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from ann import ANNScratch
 import pandas as pd
+import numpy as np
 
 def load_data():
     data = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
@@ -91,7 +92,6 @@ if __name__ == "__main__":
     # X, y = load_data()
     X, y = load_mnist_from_csv()
     print("X: \n", X)
-    X = X[:, :5]
 
     encoder = LabelEncoder()
     y_encoded = encoder.fit_transform(y)
@@ -100,13 +100,14 @@ if __name__ == "__main__":
     # X_train = X
     # y_train = y
 
-    print("X train: ", X_train)
-    print("y train: ", y_train)
+    print("X train: ", X_train.shape)
+    print("y train: ", y_train.shape)
 
     # MLP
     # print("Training scikit-learn MLP...")
     # train_sklearn_mlp(X_train, X_test, y_train, y_test)
     
     # FFNN
+    # X_train, y_train = np.array([[0.05, 0.1]]), np.array([[0.01, 0.99]])
     print("\nTraining custom ANN...")
     train_custom_ann(X_train, y_train)
