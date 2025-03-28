@@ -25,7 +25,6 @@ class ANNScratch:
 
         self.weight_gradients = []
     
-    # array of (array of (one neuron to all next neuron))
     def initialize_weights(self):
         weight = []
         bias = []
@@ -57,7 +56,6 @@ class ANNScratch:
         
             self.weights.append(weight)
             self.biases.append(bias)
-
 
     def initialize_output_weights(self, y_dim):
         n_layer = len(self.neurons)
@@ -115,7 +113,6 @@ class ANNScratch:
             return 1 / (1 + self.safe_exp(-x))
         elif func == "tanh":
             return np.tanh(x)
-        # TODO
         elif func == "softmax": 
             exp_x = self.safe_exp(x - np.max(x, axis=1, keepdims=True))
             return exp_x / np.sum(exp_x, axis=1, keepdims=True)
@@ -137,8 +134,7 @@ class ANNScratch:
             return x * (1 - x)
         elif func == "tanh":
             return 1 - np.tanh(x) ** 2
-        # TODO
-        elif func == "softmax": # not yet
+        elif func == "softmax":
             shiftx = x - np.max(x)
             exps = self.safe_exp(shiftx)
             return exps / np.sum(exps)
@@ -191,7 +187,7 @@ class ANNScratch:
         gradients_w = [np.zeros_like(w) for w in self.weights]
         gradients_b = [np.zeros_like(b) for b in self.biases]
         
-        y_predicted = self.predict(X) # forward
+        y_predicted = self.predict(X)
 
         delta = self.loss_gradient(y, y_predicted)
 
@@ -226,19 +222,18 @@ class ANNScratch:
         self.bias_gradients = [gb.copy() for gb in gradients_b]
         
         return gradients_w, gradients_b
-        
 
     def update_weights(self, gradients_w, gradients_b):
         for i in range(len(self.weights)):
             self.weights[i] -= self.learning_rate * gradients_w[i]
             self.biases[i] -= self.learning_rate * gradients_b[i]
 
-
     def fit(self, X, y):
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
         self.initialize_output_weights(y.shape[1])
+        self.neurons.append(y.shape[1])
 
         self.loss_x = []
         self.loss_y = []
@@ -253,7 +248,7 @@ class ANNScratch:
                 gradients_w, gradients_b = self.backward(X_batch, y_batch)
                 self.update_weights(gradients_w, gradients_b)
             
-            if self.verbose: # and epoch % 10 == 0:
+            if self.verbose:
                 # print("Weight size: ", len(self.weights[0]))
                 # print("Weight: ", self.weights)
                 # print("Bias size: ", len(self.biases))
@@ -262,13 +257,12 @@ class ANNScratch:
                 y_predicted = self.predict(X)
 
                 loss = self.loss_function(y, y_predicted)
-                print(f"Epoch {epoch}/{self.epochs}, Loss: {loss:.4f}")
-                # print(f"Epoch {epoch}/{self.epochs}")
+                print(f"Epoch {epoch + 1}/{self.epochs}, Loss: {loss:.4f}")
 
                 self.loss_x.append(epoch)
                 self.loss_y.append(loss)
 
-    def predict(self, X): # forward
+    def predict(self, X):
         self.layer_outputs = []
         self.layer_inputs = []
         input_data = X
