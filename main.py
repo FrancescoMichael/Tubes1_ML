@@ -8,6 +8,7 @@ from visualizer import ANNVisualizer
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import traceback
 
 def load_data():
     """Load MNIST data and normalize pixel values"""
@@ -17,15 +18,17 @@ def load_data():
 def load_mnist_from_csv():
     print("Loading...")
     df = pd.read_csv("mnist.csv")
-    # df = pd.read_csv("test.csv")
     y = df["label"].values
-    y_transformed = np.zeros((len(y), 10))
+
+    y_transformed = np.zeros((len(y), len(np.unique(y))))
+    print(y_transformed)
     labels = y - 1
     for i, label in enumerate(labels):
         y_transformed[i, :] = 0 
         y_transformed[i, label] = 1 
+
     X = df.drop(columns=["label"]).values
-    print("Y:", y_transformed)
+    
     return X, y_transformed
 
 def preprocess_data(X, y, test_size=0.3, random_state=42):
@@ -51,6 +54,7 @@ def train_sklearn_mlp(config, X_train, X_test, y_train, y_test):
     )
     mlp.fit(X_train, y_train)
     y_pred = mlp.predict(X_test)
+    
     print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
     return mlp.loss_curve_
 
@@ -114,6 +118,7 @@ def main():
     model = None
     try:
         X, y = load_mnist_from_csv()
+
         # X, y = load_data()
         X_train, X_test, y_train, y_test = preprocess_data(X, y)
         
@@ -140,7 +145,7 @@ def main():
                         model.epochs = epochs
                         model.fit(X_train, y_train)
                         custom_loss = model.loss_y
-                    except ValueError:
+                    except ValueError as e:
                         print("Invalid number of epochs - using default epochs")
                         model.fit(X_train, y_train)
                         custom_loss = model.loss_y

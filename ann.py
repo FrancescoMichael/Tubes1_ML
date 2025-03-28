@@ -22,6 +22,8 @@ class ANNScratch:
         self.weights = []
         self.biases = []
         self.initialize_weights()
+
+        self.weight_gradients = []
     
     # array of (array of (one neuron to all next neuron))
     def initialize_weights(self):
@@ -144,7 +146,9 @@ class ANNScratch:
             return 1 - np.tanh(x) ** 2
         # TODO
         elif func == "softmax": # not yet
-            return x * (1 - x)
+            shiftx = x - np.max(x)
+            exps = self.safe_exp(shiftx)
+            return exps / np.sum(exps)
         elif func == "softplus":
             return 1 / (1 + self.safe_exp(-x))
         elif func == "leaky_relu":
@@ -248,6 +252,10 @@ class ANNScratch:
         # print("Gradient B", gradients_b)
         gradients_w = [np.clip(grad, -1, 1) for grad in gradients_w]
         gradients_b = [np.clip(grad, -1, 1) for grad in gradients_b]
+
+        self.weight_gradients = [gw.copy() for gw in gradients_w]
+        self.bias_gradients = [gb.copy() for gb in gradients_b]
+        
         return gradients_w, gradients_b
         
     def update_weights(self, gradients_w, gradients_b):
@@ -309,12 +317,6 @@ class ANNScratch:
 
                 self.loss_x.append(epoch)
                 self.loss_y.append(loss)
-
-        plt.figure(1)
-        plt.plot(self.loss_x, self.loss_y)
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
-        plt.draw()
 
     def predict(self, X): # forward
         self.layer_outputs = []
