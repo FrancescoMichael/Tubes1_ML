@@ -12,16 +12,23 @@ import matplotlib.pyplot as plt
 def load_data():
     """Load MNIST data and normalize pixel values"""
     X, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False, parser="pandas")
+    y = LabelEncoder().fit_transform(y)
     return X / 255.0, y
 
 def load_mnist_from_csv():
     print("Loading...")
-    df = pd.read_csv("test.csv")
+    df = pd.read_csv("mnist.csv")
     y = df["label"].values
     X = df.drop(columns=["label"]).values
 
-    # Jika `y` perlu dikonversi ke integer
-    y = LabelEncoder().fit_transform(y)
+    # Onehot
+    y_transformed = np.zeros((len(y), len(np.unique(y))))
+    labels = y - 1
+    for i, label in enumerate(labels):
+        y_transformed[i, :] = 0 
+        y_transformed[i, label] = 1 
+    
+    y = y_transformed
 
     return X, y
 
@@ -78,6 +85,7 @@ def get_user_model_config(input_dim):
     learning_rate = float(input("Learning rate: "))
     n_epoch = int(input("Jumlah epoch: "))
     verbose = bool(int(input("Verbose (0/1): ")))
+    normalize_output = bool(input("Normalize output? (y/n): ") == 'y')
     
     regularization = input("Regularization (None/L1/L2): ").lower()
     reg_lambda = float(input("Regularization Lambda: ")) if regularization in ["l1", "l2"] else 0
@@ -88,7 +96,8 @@ def get_user_model_config(input_dim):
     return {
         "neurons": n_neurons, "activations": activations, "epochs": n_epoch, "loss": loss,
         "learning_rate": learning_rate, "batch_size": batch_size, "verbose": verbose,
-        "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization
+        "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization,
+        "normalize_output": normalize_output
     }
 
 def train_custom_ann(config, X_train, y_train):
@@ -111,12 +120,11 @@ def plot_results(mlp_loss, custom_loss):
 def main():
     model = None
     try:
-        # X, y = load_mnist_from_csv()
+        X, y = load_mnist_from_csv()
 
-        X, y = load_data()
+        # X, y = load_data()
 
-        print("Y", y)
-        X_train, X_test, y_train, y_test = preprocess_data(X, LabelEncoder().fit_transform(y))
+        X_train, X_test, y_train, y_test = preprocess_data(X, y)
         
         use_saved = input("\nLoad existing model? (y/n): ").lower() == 'y'
         custom_loss = []

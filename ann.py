@@ -5,7 +5,7 @@ import pickle
 from visualizer import ANNVisualizer
 
 class ANNScratch:
-    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None):
+    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None, normalize_output = False):
         self.neurons = neurons
         self.activations = activations
         self.epochs = epochs
@@ -21,6 +21,7 @@ class ANNScratch:
         self.rms_norm = rms_norm
         self.weights = []
         self.biases = []
+        self.normalize_output = normalize_output
         self.initialize_weights()
 
         self.weight_gradients = []
@@ -232,10 +233,6 @@ class ANNScratch:
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
-        print(y)
-
-        print(y.shape)
-
         self.initialize_output_weights(y.shape[1])
         self.neurons.append(y.shape[1])
 
@@ -283,11 +280,13 @@ class ANNScratch:
             self.layer_outputs.append(input_data)
 
         # normalize output
-        row_sums = input_data.sum(axis=1)
-        normalized_arr = np.divide(input_data, row_sums[:, np.newaxis], 
-                                out=np.zeros_like(input_data, dtype=float), 
-                                where=row_sums[:, np.newaxis]!=0)
-        return normalized_arr
+        if self.normalize_output:
+            row_sums = input_data.sum(axis=1)
+            normalized_arr = np.divide(input_data, row_sums[:, np.newaxis], 
+                                    out=np.zeros_like(input_data, dtype=float), 
+                                    where=row_sums[:, np.newaxis]!=0)
+            return normalized_arr
+        return input_data
     
     def get_model_state(self):
         state = {
@@ -305,7 +304,8 @@ class ANNScratch:
                 'reg_lambda': self.reg_lambda,
                 'epsilon': self.epsilon,
                 'alpha': self.alpha,
-                'rms_norm': self.rms_norm
+                'rms_norm': self.rms_norm,
+                'normalize_output': self.normalize_output
             }
         }
         
@@ -354,7 +354,8 @@ class ANNScratch:
                 reg_lambda=model_state['hyperparameters']['reg_lambda'],
                 epsilon=model_state['hyperparameters']['epsilon'],
                 alpha=model_state['hyperparameters']['alpha'],
-                rms_norm=model_state['hyperparameters']['rms_norm']
+                rms_norm=model_state['hyperparameters']['rms_norm'],
+                normalize_output=model_state['hyperparameters']['normalize_output']
             )
             
             model.weights = [w.copy() for w in model_state['weights']]
