@@ -50,7 +50,7 @@ def train_sklearn_mlp(config, X_train, X_test, y_train, y_test):
     if config['regularization'] == 'l2':
         reg_lambda = config['reg_lambda']
 
-    mlp = MLPClassifier(hidden_layer_sizes=config['neurons'], max_iter=config['epochs'], alpha=reg_lambda,
+    mlp = MLPClassifier(hidden_layer_sizes=config['neurons'], max_iter=10, alpha=reg_lambda,
                         solver='sgd', verbose=10, random_state=42, learning_rate_init=config['learning_rate'])
     mlp.fit(X_train, y_train)
     y_pred = mlp.predict(X_test)
@@ -130,8 +130,8 @@ if __name__ == "__main__":
     config = get_user_model_config(X.shape[1])
 
     # MLP
-    print("Training scikit-learn MLP...")
-    train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
+    # print("Training scikit-learn MLP...")
+    # train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
     
     # FFNN
     # X_train, y_train = np.array([[0.05, 0.1]]), np.array([[0.01, 0.99]])
