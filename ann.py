@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-# from visualizer import ANNVisualizer
+import os
+import pickle
+from visualizer import ANNVisualizer
 
 class ANNScratch:
     def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None):
@@ -229,8 +231,8 @@ class ANNScratch:
 
             # print("Multiplied delta", delta)
 
-            gradients_w[i] = np.matmul(input_data.T, delta) / X.shape[0]
-            gradients_b[i] = np.sum(delta, axis=0, keepdims=True) / X.shape[0]
+            gradients_w[i] = np.matmul(input_data.T, delta) 
+            gradients_b[i] = np.sum(delta, axis=0, keepdims=True) 
 
             if i > 0:
                 delta = np.matmul(delta, self.weights[i].T)
@@ -337,101 +339,101 @@ class ANNScratch:
                                 where=row_sums[:, np.newaxis]!=0)
         return normalized_arr
     
-    # def get_model_state(self):
-    #     state = {
-    #         'weights': [w.copy() for w in self.weights],
-    #         'biases': [b.copy() for b in self.biases],
-    #         'neurons': self.neurons.copy(),
-    #         'activations': self.activations.copy(),
-    #         'hyperparameters': {
-    #             'epochs': self.epochs,
-    #             'loss': self.loss,
-    #             'learning_rate': self.learning_rate,
-    #             'initialization': self.initialization,
-    #             'batch_size': self.batch_size,
-    #             'regularization': self.regularization,
-    #             'reg_lambda': self.reg_lambda,
-    #             'epsilon': self.epsilon,
-    #             'alpha': self.alpha,
-    #             'rms_norm': self.rms_norm
-    #         }
-    #     }
+    def get_model_state(self):
+        state = {
+            'weights': [w.copy() for w in self.weights],
+            'biases': [b.copy() for b in self.biases],
+            'neurons': self.neurons.copy(),
+            'activations': self.activations.copy(),
+            'hyperparameters': {
+                'epochs': self.epochs,
+                'loss': self.loss,
+                'learning_rate': self.learning_rate,
+                'initialization': self.initialization,
+                'batch_size': self.batch_size,
+                'regularization': self.regularization,
+                'reg_lambda': self.reg_lambda,
+                'epsilon': self.epsilon,
+                'alpha': self.alpha,
+                'rms_norm': self.rms_norm
+            }
+        }
         
-    #     if hasattr(self, 'weight_gradients'):
-    #         state['weight_gradients'] = [wg.copy() for wg in self.weight_gradients]
-    #     if hasattr(self, 'bias_gradients'):
-    #         state['bias_gradients'] = [bg.copy() for bg in self.bias_gradients]
-    #     if hasattr(self, 'layer_outputs'):
-    #         state['layer_outputs'] = [out.copy() for out in self.layer_outputs]
-    #     if hasattr(self, 'layer_inputs'):
-    #         state['layer_inputs'] = [inp.copy() for inp in self.layer_inputs]
+        if hasattr(self, 'weight_gradients'):
+            state['weight_gradients'] = [wg.copy() for wg in self.weight_gradients]
+        if hasattr(self, 'bias_gradients'):
+            state['bias_gradients'] = [bg.copy() for bg in self.bias_gradients]
+        if hasattr(self, 'layer_outputs'):
+            state['layer_outputs'] = [out.copy() for out in self.layer_outputs]
+        if hasattr(self, 'layer_inputs'):
+            state['layer_inputs'] = [inp.copy() for inp in self.layer_inputs]
         
-    #     return state
+        return state
 
-    # def save_model(self, filepath):
-    #     try:
-    #         model_state = self.get_model_state()
-    #         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    #         with open(filepath, 'wb') as f:
-    #             pickle.dump(model_state, f)
-    #         print(f"Model saved successfully to {filepath}")
-    #     except Exception as e:
-    #         print(f"Error saving model: {str(e)}")
-    #         raise
+    def save_model(self, filepath):
+        try:
+            model_state = self.get_model_state()
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'wb') as f:
+                pickle.dump(model_state, f)
+            print(f"Model saved successfully to {filepath}")
+        except Exception as e:
+            print(f"Error saving model: {str(e)}")
+            raise
     
-    # @classmethod
-    # def load_model(cls, filepath, input_dim=None, output_dim=None):
-    #     try:
-    #         with open(filepath, 'rb') as f:
-    #             model_state = pickle.load(f)
+    @classmethod
+    def load_model(cls, filepath, input_dim=None, output_dim=None):
+        try:
+            with open(filepath, 'rb') as f:
+                model_state = pickle.load(f)
             
-    #         if input_dim and model_state['neurons'][0] != input_dim:
-    #             raise ValueError(f"Model expects {model_state['neurons'][0]} input features, got {input_dim}")
-    #         if output_dim and model_state['neurons'][-1] != output_dim:
-    #             raise ValueError(f"Model expects {model_state['neurons'][-1]} outputs, got {output_dim}")
+            if input_dim and model_state['neurons'][0] != input_dim:
+                raise ValueError(f"Model expects {model_state['neurons'][0]} input features, got {input_dim}")
+            if output_dim and model_state['neurons'][-1] != output_dim:
+                raise ValueError(f"Model expects {model_state['neurons'][-1]} outputs, got {output_dim}")
             
-    #         model = cls(
-    #             neurons=model_state['neurons'],
-    #             activations=model_state['activations'],
-    #             epochs=model_state['hyperparameters']['epochs'],
-    #             loss=model_state['hyperparameters']['loss'],
-    #             learning_rate=model_state['hyperparameters']['learning_rate'],
-    #             initialization=model_state['hyperparameters']['initialization'],
-    #             batch_size=model_state['hyperparameters']['batch_size'],
-    #             regularization=model_state['hyperparameters']['regularization'],
-    #             reg_lambda=model_state['hyperparameters']['reg_lambda'],
-    #             epsilon=model_state['hyperparameters']['epsilon'],
-    #             alpha=model_state['hyperparameters']['alpha'],
-    #             rms_norm=model_state['hyperparameters']['rms_norm']
-    #         )
+            model = cls(
+                neurons=model_state['neurons'],
+                activations=model_state['activations'],
+                epochs=model_state['hyperparameters']['epochs'],
+                loss=model_state['hyperparameters']['loss'],
+                learning_rate=model_state['hyperparameters']['learning_rate'],
+                initialization=model_state['hyperparameters']['initialization'],
+                batch_size=model_state['hyperparameters']['batch_size'],
+                regularization=model_state['hyperparameters']['regularization'],
+                reg_lambda=model_state['hyperparameters']['reg_lambda'],
+                epsilon=model_state['hyperparameters']['epsilon'],
+                alpha=model_state['hyperparameters']['alpha'],
+                rms_norm=model_state['hyperparameters']['rms_norm']
+            )
             
-    #         model.weights = [w.copy() for w in model_state['weights']]
-    #         model.biases = [b.copy() for b in model_state['biases']]
+            model.weights = [w.copy() for w in model_state['weights']]
+            model.biases = [b.copy() for b in model_state['biases']]
             
-    #         if 'weight_gradients' in model_state:
-    #             model.weight_gradients = [wg.copy() for wg in model_state['weight_gradients']]
-    #         if 'bias_gradients' in model_state:
-    #             model.bias_gradients = [bg.copy() for bg in model_state['bias_gradients']]
-    #         if 'layer_outputs' in model_state:
-    #             model.layer_outputs = [out.copy() for out in model_state['layer_outputs']]
-    #         if 'layer_inputs' in model_state:
-    #             model.layer_inputs = [inp.copy() for inp in model_state['layer_inputs']]
+            if 'weight_gradients' in model_state:
+                model.weight_gradients = [wg.copy() for wg in model_state['weight_gradients']]
+            if 'bias_gradients' in model_state:
+                model.bias_gradients = [bg.copy() for bg in model_state['bias_gradients']]
+            if 'layer_outputs' in model_state:
+                model.layer_outputs = [out.copy() for out in model_state['layer_outputs']]
+            if 'layer_inputs' in model_state:
+                model.layer_inputs = [inp.copy() for inp in model_state['layer_inputs']]
             
-    #         print(f"Model loaded successfully from {filepath}")
-    #         return model
-    #     except Exception as e:
-    #         print(f"Error loading model: {str(e)}")
-    #         raise
+            print(f"Model loaded successfully from {filepath}")
+            return model
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            raise
 
-    # def visualize(self):
-    #     visualizer = ANNVisualizer(self)
+    def visualize(self):
+        visualizer = ANNVisualizer(self)
         
-    #     print("\nNetwork Architecture Visualization:")
-    #     visualizer.visualize_network()
+        print("\nNetwork Architecture Visualization:")
+        visualizer.visualize_network()
         
-    #     print("\nWeight Distributions:")
-    #     visualizer.plot_weight_distribution()
+        print("\nWeight Distributions:")
+        visualizer.plot_weight_distribution()
         
-    #     if hasattr(self, 'weight_gradients'):
-    #         print("\nGradient Distributions:")
-    #         visualizer.plot_gradient_distribution()
+        if hasattr(self, 'weight_gradients'):
+            print("\nGradient Distributions:")
+            visualizer.plot_gradient_distribution()
