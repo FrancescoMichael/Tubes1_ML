@@ -117,10 +117,10 @@ def plot_results(mlp_loss, custom_loss):
 def main():
     model = None
     try:
-        X, y = load_mnist_from_csv()
+        # X, y = load_mnist_from_csv()
 
-        # X, y = load_data()
-        X_train, X_test, y_train, y_test = preprocess_data(X, y)
+        X, y = load_data()
+        X_train, X_test, y_train, y_test = preprocess_data(X, LabelEncoder().fit_transform(y))
         
         use_saved = input("\nLoad existing model? (y/n): ").lower() == 'y'
         custom_loss = []
