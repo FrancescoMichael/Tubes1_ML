@@ -117,9 +117,9 @@ def plot_results(mlp_loss, custom_loss):
 def main():
     model = None
     try:
-        X, y = load_mnist_from_csv()
+        # X, y = load_mnist_from_csv()
 
-        # X, y = load_data()
+        X, y = load_data()
         X_train, X_test, y_train, y_test = preprocess_data(X, y)
         
         use_saved = input("\nLoad existing model? (y/n): ").lower() == 'y'
@@ -138,17 +138,39 @@ def main():
                     model = None
                     raise ValueError("Input dimension mismatch")
                 
-                continue_train = input("Continue training this model? (y/n): ").lower() == 'y'
-                if continue_train:
-                    try:
-                        epochs = int(input("Epochs to train: "))
-                        model.epochs = epochs
-                        model.fit(X_train, y_train)
-                        custom_loss = model.loss_y
-                    except ValueError as e:
-                        print("Invalid number of epochs - using default epochs")
-                        model.fit(X_train, y_train)
-                        custom_loss = model.loss_y
+                # continue_train = input("Continue training this model? (y/n): ").lower() == 'y'
+                # if continue_train:
+                #     try:
+                #         epochs = int(input("Epochs to train: "))
+                #         model.epochs = epochs
+                #         model.fit(X_train, y_train)
+                #         custom_loss = model.loss_y
+                #     except ValueError as e:
+                #         print("Invalid number of epochs - using default epochs")
+                #         model.fit(X_train, y_train)
+                #         custom_loss = model.loss_y
+
+                # Make predictions with the loaded model
+                print("\nMaking predictions with loaded model...")
+                y_pred = model.predict(X_test)
+                
+                # Evaluate predictions
+                if model.loss == "binary_cross_entropy":
+                    y_pred_class = (y_pred > 0.5).astype(int)
+                    accuracy = np.mean(y_pred_class == y_test)
+                    print(f"Test Accuracy: {accuracy:.4f}")
+                elif model.loss == "categorical_cross_entropy":
+                    y_pred_class = np.argmax(y_pred, axis=1)
+                    y_test_class = np.argmax(y_test, axis=1)
+                    accuracy = np.mean(y_pred_class == y_test_class)
+                    print(f"Test Accuracy: {accuracy:.4f}")
+                else: 
+                    mse = np.mean((y_pred - y_test)**2)
+                    print(f"Test MSE: {mse:.4f}")
+                
+                # Show some example predictions
+                print("\nSample predictions:")
+                # predict here
             except Exception as e:
                 print(f"Error loading/continuing model: {e}")
                 print("Proceeding with new model training...")
