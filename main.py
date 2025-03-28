@@ -17,13 +17,13 @@ def load_data():
 
 def load_mnist_from_csv():
     print("Loading...")
-    # df = pd.read_csv("mnist.csv")
-    # y = df["label"].values
-    # X = df.drop(columns=["label"]).values
+    df = pd.read_csv("mnist.csv")
+    y = df["label"].values
+    X = df.drop(columns=["label"]).values
 
-    df = pd.read_csv("train.csv")
-    y = df["price_range"].values
-    X = df.drop(columns=["price_range"]).values
+    # df = pd.read_csv("train.csv")
+    # y = df["price_range"].values
+    # X = df.drop(columns=["price_range"]).values
 
     # Onehot
     y_transformed = np.zeros((len(y), len(np.unique(y))))
@@ -136,17 +136,12 @@ def get_user_model_config(input_dim):
         "normalize_output": normalize_output, "initialization_config": initialization_config
     }
 
-def train_custom_ann(config, X_train, y_train):
-    model = ANNScratch(**config)
-    model.fit(X_train, y_train)
-    model.save_model('saved_models/my_ann_model.pkl')
-    return model.loss_x, model.loss_y
-
-def plot_results(mlp_loss, custom_loss):
+def plot_results(mlp_loss, custom_train_loss, custom_val_loss):
     plt.figure(figsize=(10, 6))
-    plt.plot(mlp_loss, label='Scikit-learn MLP', color='blue')
-    plt.plot(custom_loss, label='Custom ANN', color='red')
-    plt.title('Training Loss Comparison')
+    plt.plot(mlp_loss, label='Scikit-learn MLP (Train)', color='blue', linestyle='--')
+    plt.plot(custom_train_loss, label='Custom ANN (Train)', color='red')
+    plt.plot(custom_val_loss, label='Custom ANN (Validation)', color='green', linestyle=':')
+    plt.title('Training & Validation Loss Comparison')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
@@ -236,11 +231,15 @@ def main():
                 
                 print("\nTraining custom ANN...")
                 model = ANNScratch(**config)
-                model.fit(X_train, y_train)
+                model.fit(X_train, y_train, X_val=X_test, y_val=y_test)
+                model.save_model('saved_models/my_ann_model.pkl')
                 
-                custom_epochs, custom_loss = range(len(model.loss_y)), model.loss_y
+                custom_train_loss = model.loss_y
+                custom_val_loss = model.validation_loss
 
                 y_pred = model.predict(X_test)
+
+                plot_results(mlp_loss, custom_train_loss, custom_val_loss)
                 
                 # Evaluate predictions
                 if model.loss == "binary_cross_entropy":
@@ -262,8 +261,6 @@ def main():
             except Exception as e:
                 print(f"\nError during training: {e}")
                 raise
-        
-        plot_results(mlp_loss, custom_loss)
 
         if model is not None:
             visualize = input("\nVisualize model details? (y/n): ").lower() == 'y'

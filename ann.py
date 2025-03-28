@@ -242,7 +242,7 @@ class ANNScratch:
             self.weights[i] -= self.learning_rate * gradients_w[i]
             self.biases[i] -= self.learning_rate * gradients_b[i]
 
-    def fit(self, X, y):
+    def fit(self, X, y, X_val = None, y_val = None):
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
@@ -251,6 +251,8 @@ class ANNScratch:
 
         self.loss_x = []
         self.loss_y = []
+        self.training_loss = []
+        self.validation_loss = []
 
         n_samples = X.shape[0]
         for epoch in range(self.epochs):
@@ -262,19 +264,23 @@ class ANNScratch:
                 gradients_w, gradients_b = self.backward(X_batch, y_batch)
                 self.update_weights(gradients_w, gradients_b)
             
+            y_pred_train = self.predict(X)
+            train_loss = self.loss_function(y, y_pred_train)
+            self.loss_y.append(train_loss)
+
+            val_loss = None
+            if X_val is not None and y_val is not None:
+                y_pred_val = self.predict(X_val)
+                val_loss = self.loss_function(y_val, y_pred_val)
+                self.validation_loss.append(val_loss)
+
             if self.verbose:
-                # print("Weight size: ", len(self.weights[0]))
-                # print("Weight: ", self.weights)
-                # print("Bias size: ", len(self.biases))
-                # print("Bias: ", self.biases)
+                log_msg = f"Epoch {epoch + 1}/{self.epochs}, Training Loss: {train_loss:.4f}"
+                if val_loss is not None:
+                    log_msg += f", Validation Loss: {val_loss:.4f}"
+                print(log_msg)
 
-                y_predicted = self.predict(X)
-
-                loss = self.loss_function(y, y_predicted)
-                print(f"Epoch {epoch + 1}/{self.epochs}, Loss: {loss:.4f}")
-
-                self.loss_x.append(epoch)
-                self.loss_y.append(loss)
+            self.loss_x.append(epoch)
 
     def predict(self, X):
         self.layer_outputs = []
