@@ -17,9 +17,13 @@ def load_data():
 
 def load_mnist_from_csv():
     print("Loading...")
-    df = pd.read_csv("mnist.csv")
-    y = df["label"].values
-    X = df.drop(columns=["label"]).values
+    # df = pd.read_csv("mnist.csv")
+    # y = df["label"].values
+    # X = df.drop(columns=["label"]).values
+
+    df = pd.read_csv("train.csv")
+    y = df["price_range"].values
+    X = df.drop(columns=["price_range"]).values
 
     # Onehot
     y_transformed = np.zeros((len(y), len(np.unique(y))))
@@ -92,12 +96,44 @@ def get_user_model_config(input_dim):
     
     initialization_options = {"1": "zero", "2": "uniform", "3": "normal", "4": "xavier", "5": "he"}
     initialization = initialization_options.get(input("1. Zero\n2. Uniform\n3. Normal\n4. Xavier\n5. He\nInitialisasi: "), "xavier")
+
+    initialization_config = {}
+
+    if initialization == "uniform":
+        # standard:
+        #   lower = -1
+        #   upper = 1
+
+        lower_bound = float(input("Lower bound: "))
+        upper_bound = float(input("Upper bound: "))
+        seed = int(input("Seed: "))
+        
+        initialization_config = {
+            "lower_bound": lower_bound,
+            "upper_bound": upper_bound,
+            "seed": seed
+        }
+    
+    elif initialization == "normal":
+        # standard:
+        #   mean = 0
+        #   variance = 1
+        
+        mean = float(input("Mean: "))
+        variance = float(input("Variance: "))
+        seed = int(input("Seed: "))
+
+        initialization_config = {
+            "mean": mean,
+            "variance": variance,
+            "seed": seed
+        }
     
     return {
         "neurons": n_neurons, "activations": activations, "epochs": n_epoch, "loss": loss,
         "learning_rate": learning_rate, "batch_size": batch_size, "verbose": verbose,
         "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization,
-        "normalize_output": normalize_output
+        "normalize_output": normalize_output, "initialization_config": initialization_config
     }
 
 def train_custom_ann(config, X_train, y_train):

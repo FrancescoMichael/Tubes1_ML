@@ -5,7 +5,7 @@ import pickle
 from visualizer import ANNVisualizer
 
 class ANNScratch:
-    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None, normalize_output = False):
+    def __init__(self, neurons, activations, epochs, loss, learning_rate, initialization = "normal", batch_size = 32, verbose = 1, regularization = None, reg_lambda = 0.01, epsilon = 1e-8, alpha = 0.01, rms_norm = None, normalize_output = False, initialization_config = {}):
         self.neurons = neurons
         self.activations = activations
         self.epochs = epochs
@@ -22,6 +22,8 @@ class ANNScratch:
         self.weights = []
         self.biases = []
         self.normalize_output = normalize_output
+        self.initialization_config = initialization_config
+
         self.initialize_weights()
 
         self.weight_gradients = []
@@ -39,11 +41,22 @@ class ANNScratch:
                 weight = np.zeros((input_dim, output_dim))
                 bias = np.zeros((1, output_dim))
             elif self.initialization == "uniform":
-                weight = np.random.uniform(-1, 1, (input_dim, output_dim))
-                bias = np.random.uniform(-1, 1, (1, output_dim))
+                np.random.seed(self.initialization_config['seed'])
+
+                lower_bound = self.initialization_config['lower_bound']
+                upper_bound = self.initialization_config['upper_bound']
+
+                weight = np.random.uniform(lower_bound, upper_bound, (input_dim, output_dim))
+                bias = np.random.uniform(lower_bound, upper_bound, (1, output_dim))
             elif self.initialization == "normal":
-                weight = np.random.randn(input_dim, output_dim) * 0.1
-                bias = np.random.randn(1, output_dim) * 0.1
+                np.random.seed(self.initialization_config['seed'])
+
+                mean = self.initialization_config['mean']
+                variance = self.initialization_config['variance']
+                std_deviation = np.sqrt(variance)
+
+                weight = np.random.normal(loc=mean, scale=std_deviation, size=(input_dim, output_dim))
+                bias = np.random.normal(loc=mean, scale=std_deviation, size=(1, output_dim))
             elif self.initialization == "xavier":
                 scale = np.sqrt(2.0 / (input_dim + output_dim))
                 weight = np.random.randn(input_dim, output_dim) * scale
