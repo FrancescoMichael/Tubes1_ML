@@ -8,7 +8,6 @@ from visualizer import ANNVisualizer
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import traceback
 
 def load_data():
     """Load MNIST data and normalize pixel values"""
@@ -17,19 +16,14 @@ def load_data():
 
 def load_mnist_from_csv():
     print("Loading...")
-    df = pd.read_csv("mnist.csv")
+    df = pd.read_csv("test.csv")
     y = df["label"].values
-
-    y_transformed = np.zeros((len(y), len(np.unique(y))))
-    print(y_transformed)
-    labels = y - 1
-    for i, label in enumerate(labels):
-        y_transformed[i, :] = 0 
-        y_transformed[i, label] = 1 
-
     X = df.drop(columns=["label"]).values
-    
-    return X, y_transformed
+
+    # Jika `y` perlu dikonversi ke integer
+    y = LabelEncoder().fit_transform(y)
+
+    return X, y
 
 def preprocess_data(X, y, test_size=0.3, random_state=42):
     X_train, X_test, y_train, y_test = train_test_split(
@@ -189,7 +183,6 @@ def main():
                 print("\nTraining custom ANN...")
                 model = ANNScratch(**config)
                 model.fit(X_train, y_train)
-
                 
                 custom_epochs, custom_loss = range(len(model.loss_y)), model.loss_y
             except KeyboardInterrupt:
@@ -238,9 +231,7 @@ def main():
                     try:
                         layer = int(input("Enter layer index: "))
                         neuron = int(input("Enter neuron index: "))
-                        visualizer.plot_neuron_weights(layer, neuron)
-                        if hasattr(model, 'weight_gradients'):
-                            visualizer.plot_neuron_gradients(layer, neuron)
+                        visualizer.plot_neuron_analysis(layer_idx=layer, neuron_idx=neuron)
                     except (ValueError, IndexError) as e:
                         print(f"Invalid neuron specification: {e}")
         
