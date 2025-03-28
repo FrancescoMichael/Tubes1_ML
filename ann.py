@@ -238,6 +238,10 @@ class ANNScratch:
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
+        print(y)
+
+        print(y.shape)
+
         self.initialize_output_weights(y.shape[1])
 
         self.loss_x = []
