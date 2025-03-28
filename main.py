@@ -171,10 +171,20 @@ def main():
                 else: 
                     mse = np.mean((y_pred - y_test)**2)
                     print(f"Test MSE: {mse:.4f}")
+
+                print("\nTraining scikit-learn MLP for comparison...")
+                config = {
+                    'neurons': model.neurons,
+                    'epochs': model.epochs,
+                    'learning_rate': model.learning_rate,
+                    'regularization': model.regularization,
+                    'reg_lambda': model.reg_lambda
+                }
+
+                print(config)
+
+                mlp_loss = train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
                 
-                # Show some example predictions
-                print("\nSample predictions:")
-                # predict here
             except Exception as e:
                 print(f"Error loading/continuing model: {e}")
                 print("Proceeding with new model training...")
@@ -193,22 +203,29 @@ def main():
                 model.fit(X_train, y_train)
                 
                 custom_epochs, custom_loss = range(len(model.loss_y)), model.loss_y
+
+                y_pred = model.predict(X_test)
+                
+                # Evaluate predictions
+                if model.loss == "binary_cross_entropy":
+                    y_pred_class = (y_pred > 0.5).astype(int)
+                    accuracy = np.mean(y_pred_class == y_test)
+                    print(f"Test Accuracy: {accuracy:.4f}")
+                elif model.loss == "categorical_cross_entropy":
+                    y_pred_class = np.argmax(y_pred, axis=1)
+                    y_test_class = np.argmax(y_test, axis=1)
+                    accuracy = np.mean(y_pred_class == y_test_class)
+                    print(f"Test Accuracy: {accuracy:.4f}")
+                else: 
+                    mse = np.mean((y_pred - y_test)**2)
+                    print(f"Test MSE: {mse:.4f}")
+
             except KeyboardInterrupt:
                 print("\nTraining interrupted by user")
                 return
             except Exception as e:
                 print(f"\nError during training: {e}")
                 raise
-        else:
-            print("\nTraining scikit-learn MLP for comparison...")
-            config = {
-                'neurons': model.neurons,
-                'epochs': model.epochs,
-                'learning_rate': model.learning_rate,
-                'regularization': model.regularization,
-                'reg_lambda': model.reg_lambda
-            }
-            mlp_loss = train_sklearn_mlp(config, X_train, X_test, y_train, y_test)
         
         plot_results(mlp_loss, custom_loss)
 
