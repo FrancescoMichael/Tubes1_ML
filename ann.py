@@ -323,7 +323,8 @@ class ANNScratch:
                 'epsilon': self.epsilon,
                 'alpha': self.alpha,
                 'rms_norm': self.rms_norm,
-                'normalize_output': self.normalize_output
+                'normalize_output': self.normalize_output,
+                'initialization_config': self.initialization_config
             }
         }
         
@@ -373,7 +374,8 @@ class ANNScratch:
                 epsilon=model_state['hyperparameters']['epsilon'],
                 alpha=model_state['hyperparameters']['alpha'],
                 rms_norm=model_state['hyperparameters']['rms_norm'],
-                normalize_output=model_state['hyperparameters']['normalize_output']
+                normalize_output=model_state['hyperparameters']['normalize_output'],
+                initialization_config=model_state['hyperparameters']['initialization_config']
             )
             
             model.weights = [w.copy() for w in model_state['weights']]
