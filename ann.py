@@ -54,15 +54,10 @@ class ANNScratch:
                 bias = np.random.randn(1, output_dim) * scale
             else:
                 raise ValueError(f"Unsupported initialization method: {self.initialization}")
-            
-            # print(f"Weight {i}: ", weight)
-            # print(f"Weight {i}: ", weight)
-
+        
             self.weights.append(weight)
             self.biases.append(bias)
-        
-        # print("Initial weight: ", self.weights)
-        # print("Initial weight: ", self.weights)
+
 
     def initialize_output_weights(self, y_dim):
         n_layer = len(self.neurons)
@@ -94,8 +89,6 @@ class ANNScratch:
 
         self.weights.append(weight)
         self.biases.append(bias)
-        
-        # print("Final weight: ", self.weights)
 
     def safe_exp(self, x, thr=700, inf=np.float64(1e18)):
         x_cop = np.copy(x)
@@ -160,8 +153,6 @@ class ANNScratch:
     
     def loss_function(self, y_actual, y_predicted):
         if self.loss == "mse":
-            # print("Y actual", y_actual.shape)
-            # print("Y predicted", y_predicted.shape)
             return np.mean((y_actual - y_predicted) ** 2)
         elif self.loss == "binary_cross_entropy":
             return -np.mean(y_actual * np.log(y_predicted + self.epsilon) + (1 - y_actual) * np.log(1 - y_predicted + self.epsilon))
@@ -202,24 +193,7 @@ class ANNScratch:
         
         y_predicted = self.predict(X) # forward
 
-        if np.isnan(np.sum(X)) or np.isnan(np.sum(y)):
-            print("WARNING: Input data contains NaN")
-            assert False
-        
-        # Validate predictions
-        if np.isnan(np.sum(y_predicted)):
-            print("WARNING: Prediction contains NaN")
-            assert False
-
-        # Ensure y_predicted is properly shaped for binary classification
-        # if y_predicted.shape[1] == 1:
-        #     y_predicted = y_predicted.squeeze()  # Convert from (n_samples, 1) to (n_samples,)
-
-        # reshape to be consistent with output shape
-        # print("Y_PREDICTED", y_predicted)
-        # print("Y", y)
         delta = self.loss_gradient(y, y_predicted)
-        # print("DELTA", delta)
 
         for i in reversed(range(len(self.weights))):
 
@@ -228,12 +202,9 @@ class ANNScratch:
 
             activation_derivative = self.activation_derivative(output, self.activations[i]) 
 
-            # print("Activ der", activation_derivative)
             assert delta.shape == activation_derivative.shape
 
             delta = np.multiply(delta, activation_derivative)
-
-            # print("Multiplied delta", delta)
 
             gradients_w[i] = np.matmul(input_data.T, delta) 
             gradients_b[i] = np.sum(delta, axis=0, keepdims=True) 
@@ -248,8 +219,6 @@ class ANNScratch:
             for i in range(len(self.weights)):
                 gradients_w[i] += self.reg_lambda * 2 * self.weights[i]
 
-        # print("Gradient W", gradients_w)
-        # print("Gradient B", gradients_b)
         gradients_w = [np.clip(grad, -1, 1) for grad in gradients_w]
         gradients_b = [np.clip(grad, -1, 1) for grad in gradients_b]
 
@@ -258,29 +227,14 @@ class ANNScratch:
         
         return gradients_w, gradients_b
         
+
     def update_weights(self, gradients_w, gradients_b):
-        # TODO
-        # for i in range(len(self.weights)):
-        #     self.weights[i] -= self.learning_rate * gradients_w[i]
-        #     self.biases[i] -= self.learning_rate * gradients_b[i]
-        # print("Before update:")
-        # original_weights = [np.copy(w) for w in self.weights]
-        
         for i in range(len(self.weights)):
-            # print(f"Layer {i} weight change: {np.mean(gradients_w[i])}")
             self.weights[i] -= self.learning_rate * gradients_w[i]
             self.biases[i] -= self.learning_rate * gradients_b[i]
-        
-        # # print("After update:")
-        # for i, (orig, updated) in enumerate(zip(original_weights, self.weights)):
-        #     weight_change = np.mean(np.abs(updated - orig))
-        #     # print(f"Layer {i} total weight change: {weight_change}")
-        #     if weight_change == 0:
-        #         print(f"WARNING: Layer {i} weights did not change!")
-        #         # assert False
+
 
     def fit(self, X, y):
-        # TODO
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
@@ -291,10 +245,6 @@ class ANNScratch:
 
         n_samples = X.shape[0]
         for epoch in range(self.epochs):
-            # indices = np.arange(n_samples)
-            # np.random.shuffle(indices)
-            # X = X[indices]
-            # y = y[indices]
             for batch_start in range(0, n_samples, self.batch_size):
                 batch_end = batch_start + self.batch_size
                 X_batch = X[batch_start:batch_end, :]
@@ -304,9 +254,9 @@ class ANNScratch:
                 self.update_weights(gradients_w, gradients_b)
             
             if self.verbose: # and epoch % 10 == 0:
-                print("Weight size: ", len(self.weights[0]))
-                print("Weight: ", self.weights)
-                print("Bias size: ", len(self.biases))
+                # print("Weight size: ", len(self.weights[0]))
+                # print("Weight: ", self.weights)
+                # print("Bias size: ", len(self.biases))
                 # print("Bias: ", self.biases)
 
                 y_predicted = self.predict(X)
@@ -331,10 +281,10 @@ class ANNScratch:
             if (self.rms_norm == "true"):
                 input_data = self.apply_rms_norm(input_data)
                 
-            input_data = self.activation(z, self.activations[i]) #output
+            input_data = self.activation(z, self.activations[i]) 
             self.layer_outputs.append(input_data)
-            # print("Input_data shape", input_data.shape)
-        # print("Result fit", input_data)
+
+        # normalize output
         row_sums = input_data.sum(axis=1)
         normalized_arr = np.divide(input_data, row_sums[:, np.newaxis], 
                                 out=np.zeros_like(input_data, dtype=float), 

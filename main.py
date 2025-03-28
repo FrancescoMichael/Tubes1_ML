@@ -54,7 +54,7 @@ def train_sklearn_mlp(config, X_train, X_test, y_train, y_test):
     )
     mlp.fit(X_train, y_train)
     y_pred = mlp.predict(X_test)
-    
+
     print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
     return mlp.loss_curve_
 
@@ -117,9 +117,9 @@ def plot_results(mlp_loss, custom_loss):
 def main():
     model = None
     try:
-        # X, y = load_mnist_from_csv()
+        X, y = load_mnist_from_csv()
 
-        X, y = load_data()
+        # X, y = load_data()
         X_train, X_test, y_train, y_test = preprocess_data(X, y)
         
         use_saved = input("\nLoad existing model? (y/n): ").lower() == 'y'
