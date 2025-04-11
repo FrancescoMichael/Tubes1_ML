@@ -34,8 +34,6 @@ class ANNScratch:
             input_dim = self.neurons[i]
             output_dim = self.neurons[i+1]
 
-            print("Input dim: ", input_dim)
-            print("Output dim: ", output_dim)
             if self.initialization == "zero":
                 weight = np.zeros((input_dim, output_dim))
                 bias = np.zeros((1, output_dim))
@@ -76,8 +74,6 @@ class ANNScratch:
         input_dim = self.neurons[n_layer-1]
         output_dim = y_dim
 
-        print("Input dim: ", input_dim)
-        print("Output dim: ", output_dim)
         if self.initialization == "zero":
             weight = np.zeros((input_dim, output_dim))
             bias = np.zeros((1, output_dim))
@@ -291,7 +287,7 @@ class ANNScratch:
             self.layer_inputs.append(input_data)
             z = np.matmul(input_data, self.weights[i]) + np.tile(self.biases[i], (cur_sample, 1))
 
-            if (self.rms_norm == "true"):
+            if (self.rms_norm == True):
                 input_data = self.apply_rms_norm(input_data)
                 
             input_data = self.activation(z, self.activations[i]) 
