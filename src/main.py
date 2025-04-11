@@ -128,12 +128,15 @@ def get_user_model_config(input_dim):
             "variance": variance,
             "seed": seed
         }
+
+    rms_norm = bool(input("Apply RMSNorm? (y/n): ") == 'y')
     
     return {
         "neurons": n_neurons, "activations": activations, "epochs": n_epoch, "loss": loss,
         "learning_rate": learning_rate, "batch_size": batch_size, "verbose": verbose,
         "regularization": regularization, "reg_lambda": reg_lambda, "initialization": initialization,
-        "normalize_output": normalize_output, "initialization_config": initialization_config
+        "normalize_output": normalize_output, "initialization_config": initialization_config,
+        "rms_norm": rms_norm
     }
 
 def plot_results(mlp_loss, custom_train_loss, custom_val_loss):
