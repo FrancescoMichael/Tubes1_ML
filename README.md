@@ -46,6 +46,6 @@ pip install numpy scikit-learn matplotlib pandas networkx
 ## Group Members
 | NIM      | Name                     | Contribution                     |
 |----------|--------------------------|---------------------------------------|
-| 13522002 | Ariel Herfrison          |         |
-| 13522024 | Kristo Anugrah           |          |
-| 13522038 | Francesco Michael Kusuma  |  |
+| 13522002 | Ariel Herfrison          | Melakukan pengujian, Debugging algoritma |
+| 13522024 | Kristo Anugrah           | Menyusun penjelasan implementasi, Debugging algoritma |
+| 13522038 | Francesco Michael Kusuma  | Melakukan pengujian, Membuat algoritma awal pelatihan model |
