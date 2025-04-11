@@ -46,24 +46,13 @@ def preprocess_data(X, y, test_size=0.3, random_state=42):
     return X_train, X_test, y_train, y_test
 
 def train_sklearn_mlp(config, X_train, X_test, y_train, y_test):
-    activation_options = {
-        "1": "logistic", "2": "tanh", "3": "relu"
-    }
-
-    act_choice = input("1. Logistic (Sigmoid)\n2. Tanh\n3. ReLU\nFungsi aktivasi MLP: ")
-    act_choice = activation_options.get(act_choice, "relu")
-
-    seed = int(input("Random State: "))
-
     mlp = MLPClassifier(
         hidden_layer_sizes=config['neurons'],
         max_iter=config['epochs'],
         alpha=config['reg_lambda'] if config['regularization'] == 'l2' else 1e-4,
-        activation=act_choice,
-        batch_size=config['batch_size'],
         # solver='sgd',
         verbose=10,
-        random_state=seed,
+        random_state=42,
         learning_rate_init=config['learning_rate'],
         n_iter_no_change=config['epochs'],
         early_stopping=False
